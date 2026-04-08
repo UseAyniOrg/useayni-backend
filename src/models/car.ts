@@ -1,6 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToMany, JoinTable, CreateDateColumn } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToMany, ManyToOne, JoinTable, JoinColumn, CreateDateColumn, DeleteDateColumn } from "typeorm";
 import { City } from "./city";
 import { Member } from "./member";
+import { Cae } from "./cae";
 
 @Entity("cars")
 export class Car {
@@ -15,6 +16,16 @@ export class Car {
 
   @CreateDateColumn()
   created_at: Date;
+
+  @DeleteDateColumn({ type: "timestamptz" })
+  deleted_at?: Date;
+
+  @Column({ type: "uuid", nullable: true })
+  cae_id?: string;
+
+  @ManyToOne(() => Cae, (cae) => cae.cars)
+  @JoinColumn({ name: "cae_id" })
+  cae?: Cae;
 
   @ManyToMany(() => City, (city) => city.cars)
   @JoinTable({

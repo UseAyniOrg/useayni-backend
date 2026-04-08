@@ -10,11 +10,13 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'User login' })
+  @ApiOperation({ summary: 'User login (signin)' })
   @ApiBody({ type: LoginDto })
-  @ApiResponse({ status: 200, description: 'Login successful' })
+  @ApiResponse({ status: 200, description: 'Login successful - Returns member data and JWT with positions' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(@Body() body: LoginDto) {
+    // Retorna: { member, accessToken, refreshToken? }
+    // JWT contém: id, email, name, isActive, roles, positions
     return this.authService.login(body.personalEmail, body.password, body.rememberMe);
   }
 

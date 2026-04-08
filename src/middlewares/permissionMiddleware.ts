@@ -1,6 +1,10 @@
 import { Request, Response, NextFunction } from "express";
+import { SetMetadata } from '@nestjs/common';
 import { AppDataBase } from "../db";
 import { Member } from "../models/member";
+
+export const ROLES_KEY = 'roles';
+export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);
 
 export function requirePermission(resource: string, action: string) {
   return async (req: Request, res: Response, next: NextFunction) => {

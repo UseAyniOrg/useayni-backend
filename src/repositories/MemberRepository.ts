@@ -19,11 +19,12 @@ export class MemberRepository {
   }
 
   async findByEmailWithPassword(email: string) {
-    return this.repository.findOne({
-      where: { email_personal: email },
-      select: ["id", "password", "email_personal", "name"],
-      relations: ["roles"],
-    });
+    return this.repository
+      .createQueryBuilder('member')
+      .addSelect('member.password')
+      .leftJoinAndSelect('member.roles', 'roles')
+      .where('member.email_personal = :email', { email })
+      .getOne();
   }
 
   async findBySponsor(sponsorId: string) {
@@ -74,6 +75,69 @@ export class MemberRepository {
         "memberCourses.courseUniversity.university",
       ],
     });
+  }
+
+  async findByIdWithPositions(id: string) {
+    const member = await this.repository.findOne({
+      where: { id },
+      relations: [
+        "roles",
+        "memberCourses",
+        "memberCourses.courseUniversity",
+        "memberCourses.courseUniversity.course",
+        "memberCourses.courseUniversity.university",
+        "memberCourses.courseUniversity.city",
+      ],
+    });
+
+    if (!member) return null;
+
+    // Buscar posições do membro
+    const [courseManagers, carManagers, caeManagers, semesterHeads] = await Promise.all([
+      this.repository.manager.query(
+        `SELECT cm.*, cu.id as course_university_id, c.name as course_name, u.name as university_name, ci.name as city_name
+         FROM course_managers cm
+         JOIN course_universities cu ON cm.course_university_id = cu.id
+         JOIN courses c ON cu.course_id = c.id
+         JOIN universities u ON cu.university_id = u.id
+         JOIN cities ci ON cu.city_id = ci.id
+         WHERE cm.member_id = $1 AND cm.end_date IS NULL AND cm.deleted_at IS NULL`,
+        [id]
+      ),
+      this.repository.manager.query(
+        `SELECT cm.*, ca.id as car_id, ca.name as car_name
+         FROM car_managers cm
+         JOIN cars ca ON cm.car_id = ca.id
+         WHERE cm.member_id = $1`,
+        [id]
+      ),
+      this.repository.manager.query(
+        `SELECT cm.*, cae.id as cae_id, cae.name as cae_name, s.name as state_name
+         FROM cae_managers cm
+         JOIN caes cae ON cm.cae_id = cae.id
+         JOIN states s ON cae.state_id = s.id
+         WHERE cm.member_id = $1 AND cm.end_date IS NULL AND cm.deleted_at IS NULL`,
+        [id]
+      ),
+      this.repository.manager.query(
+        `SELECT psh.*, ps.semester_number, c.name as course_name
+         FROM program_semester_heads psh
+         JOIN program_semesters ps ON psh.program_semester_id = ps.id
+         JOIN courses c ON ps.course_id = c.id
+         WHERE psh.member_id = $1 AND psh.end_date IS NULL AND psh.deleted_at IS NULL`,
+        [id]
+      ),
+    ]);
+
+    return {
+      ...member,
+      positions: {
+        courseManagers,
+        carManagers,
+        caeManagers,
+        semesterHeads,
+      },
+    };
   }
 
   async addCourseToMember(

@@ -1,9 +1,11 @@
-declare namespace Express {
-  export interface Request {
-    user?: {
-      id: string;
-      email: string;
-      roles: string[];
-    };
+import { JWTPayload } from '../helpers/tokenHelper';
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: JWTPayload;
+    }
   }
 }
+
+export {};

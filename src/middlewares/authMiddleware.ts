@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import * as jwt from "jsonwebtoken";
 import { authConfig } from "../config/auth";
+import { JWTPayload } from "../helpers/tokenHelper";
 
 export async function authMiddleware(
   req: Request,
@@ -25,11 +26,7 @@ export async function authMiddleware(
   try {
     if (!authConfig.jwt.secret) throw new Error("JWT secret is not defined");
     
-    const decoded = jwt.verify(token, authConfig.jwt.secret) as {
-      id: string;
-      email: string;
-      roles: string[];
-    };
+    const decoded = jwt.verify(token, authConfig.jwt.secret) as JWTPayload;
     
     req.user = decoded;
     next();

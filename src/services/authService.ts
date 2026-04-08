@@ -5,6 +5,7 @@ import { authConfig } from "../config/auth";
 import { Member } from "../models/member";
 import { MemberRepository } from "../repositories/MemberRepository";
 import { TokenRepository } from "../repositories/TokenRepository";
+import { JWTPayload, MemberPosition } from "../helpers/tokenHelper";
 
 @Injectable()
 export class AuthService {
@@ -20,7 +21,7 @@ export class AuthService {
     const passwordMatch = await bcrypt.compare(password, member.password);
     if (!passwordMatch) throw new Error("Credenciais inválidas");
 
-    const accessToken = await this.generateAccessToken(member);
+    const accessToken = await this.generateAccessToken(member.id);
     
     let refreshToken: string | undefined;
     if (rememberMe) {
@@ -54,7 +55,7 @@ export class AuthService {
     const member = await this.memberRepository.findById(decoded.id);
     if (!member) throw new Error("Usuário não encontrado");
 
-    const accessToken = await this.generateAccessToken(member);
+    const accessToken = await this.generateAccessToken(member.id);
     const newRefreshToken = await this.generateRefreshToken(member);
     
     return { accessToken, refreshToken: newRefreshToken };
@@ -68,27 +69,82 @@ export class AuthService {
     return { valid: true };
   }
 
-  private async generateAccessToken(member: Member): Promise<string> {
+  private async generateAccessToken(memberId: string): Promise<string> {
     if (!authConfig.jwt.secret) throw new Error("JWT secret is not defined");
 
-    await this.tokenRepository.deleteByMemberIdAndType(member.id, "access");
+    await this.tokenRepository.deleteByMemberIdAndType(memberId, "access");
 
-    const roles = member.roles?.map(role => role.name) || [];
+    // Buscar membro com todas as posições
+    const memberData = await this.memberRepository.findByIdWithPositions(memberId);
+    if (!memberData) throw new Error("Membro não encontrado");
 
-    const token = jwt.sign(
-      {
-        id: member.id,
-        email: member.email_personal,
-        roles: roles,
-      },
-      authConfig.jwt.secret,
-      { expiresIn: authConfig.jwt.expiresIn },
-    );
+    const roles = memberData.roles?.map(role => role.name) || [];
+    const isActive = memberData.memberCourses?.some(mc => mc.status === 'active') || false;
+
+    // Montar posições
+    const positions: MemberPosition[] = [];
+
+    // REPRESENTANTE
+    if (memberData.positions.semesterHeads) {
+      memberData.positions.semesterHeads.forEach((sh: any) => {
+        positions.push({
+          type: 'REPRESENTANTE',
+          id: sh.program_semester_id,
+          name: `${sh.semester_number}º Semestre - ${sh.course_name}`,
+        });
+      });
+    }
+
+    // DIRIGENTE
+    if (memberData.positions.courseManagers) {
+      memberData.positions.courseManagers.forEach((cm: any) => {
+        positions.push({
+          type: 'DIRIGENTE',
+          id: cm.course_university_id,
+          name: `${cm.course_name} - ${cm.university_name} - ${cm.city_name}`,
+        });
+      });
+    }
+
+    // CAR
+    if (memberData.positions.carManagers) {
+      memberData.positions.carManagers.forEach((cm: any) => {
+        positions.push({
+          type: 'CAR',
+          id: cm.car_id,
+          name: cm.car_name,
+        });
+      });
+    }
+
+    // CAE
+    if (memberData.positions.caeManagers) {
+      memberData.positions.caeManagers.forEach((cm: any) => {
+        positions.push({
+          type: 'CAE',
+          id: cm.cae_id,
+          name: `${cm.cae_name} - ${cm.state_name}`,
+        });
+      });
+    }
+
+    const payload: JWTPayload = {
+      id: memberData.id,
+      email: memberData.email_personal,
+      name: memberData.name,
+      isActive,
+      roles,
+      positions,
+    };
+
+    const token = jwt.sign(payload, authConfig.jwt.secret, {
+      expiresIn: authConfig.jwt.expiresIn,
+    });
 
     const decoded = jwt.decode(token) as { exp: number };
     await this.tokenRepository.save({
       token,
-      memberId: member.id,
+      memberId: memberData.id,
       type: "access",
       expiresAt: new Date(decoded.exp * 1000),
     });
@@ -125,15 +181,11 @@ export class AuthService {
     await this.tokenRepository.deleteByMemberId(tokenData.memberId);
   }
 
-  async verifyAccessToken(token: string) {
+  async verifyAccessToken(token: string): Promise<JWTPayload> {
     if (!authConfig.jwt.secret) throw new Error("JWT secret is not defined");
 
     try {
-      return jwt.verify(token, authConfig.jwt.secret) as {
-        id: string;
-        email: string;
-        roles: string[];
-      };
+      return jwt.verify(token, authConfig.jwt.secret) as JWTPayload;
     } catch (error) {
       throw new Error("Token inválido ou expirado");
     }

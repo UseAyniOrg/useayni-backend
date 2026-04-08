@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMan
 import { Course } from "./course";
 import { University } from "./university";
 import { City } from "./city";
+import { MemberCourse } from "./memberCourse";
 
 @Entity("course_universities")
 export class CourseUniversity {
@@ -28,5 +29,8 @@ export class CourseUniversity {
   @ManyToOne(() => City, (city) => city.courseUniversities)
   @JoinColumn({ name: "city_id" })
   city!: City;
+
+  @OneToMany(() => MemberCourse, (mc) => mc.courseUniversity)
+  memberCourses!: MemberCourse[];
 
 }
