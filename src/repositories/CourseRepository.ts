@@ -17,13 +17,32 @@ export class CourseRepository {
     });
   }
 
-  async findByUniversity(universityId: string) {
-    return this.repository
+  async findByUniversity(universityId: string, cityId?: string) {
+    const query = this.repository
       .createQueryBuilder("course")
       .leftJoinAndSelect("course.courseUniversities", "cu")
       .leftJoinAndSelect("cu.university", "university")
-      .where("cu.university_id = :universityId", { universityId })
-      .getMany();
+      .where("cu.university_id = :universityId", { universityId });
+
+    if (cityId) {
+      query.andWhere("cu.city_id = :cityId", { cityId });
+    }
+
+    return query.orderBy("course.name", "ASC").getMany();
+  }
+
+  async findByNormalizedName(name: string) {
+    return this.repository
+      .createQueryBuilder("course")
+      .where("LOWER(course.name) = LOWER(:name)", { name })
+      .getOne();
+  }
+
+  async findOrCreateByName(name: string) {
+    const existing = await this.findByNormalizedName(name);
+    if (existing) return existing;
+
+    return this.create({ name });
   }
 
   async create(data: Partial<Course>) {
