@@ -7,10 +7,26 @@ import { UniversityRepository } from '../repositories/UniversityRepository';
 import { CourseRepository } from '../repositories/CourseRepository';
 import { CityRepository } from '../repositories/CityRepository';
 import { StateRepository } from '../repositories/StateRepository';
+import { MecCourseSyncService } from '../services/MecCourseSyncService';
+import { MecUniversitySyncService } from '../services/MecUniversitySyncService';
 
 @Module({
   controllers: [UniversityController, CourseController, CityController, StateController],
-  providers: [UniversityRepository, CourseRepository, CityRepository, StateRepository],
-  exports: [UniversityRepository, CourseRepository, CityRepository, StateRepository],
+  providers: [
+    UniversityRepository,
+    CourseRepository,
+    CityRepository,
+    StateRepository,
+    MecCourseSyncService,
+    MecUniversitySyncService,
+  ],
+  exports: [
+    UniversityRepository,
+    CourseRepository,
+    CityRepository,
+    StateRepository,
+    MecCourseSyncService,
+    MecUniversitySyncService,
+  ],
 })
 export class AcademicModule {}

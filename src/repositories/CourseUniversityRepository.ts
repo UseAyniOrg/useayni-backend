@@ -37,6 +37,21 @@ export class CourseUniversityRepository {
     });
   }
 
+  async findOrCreate(data: {
+    course_id: string;
+    university_id: string;
+    city_id: string;
+  }) {
+    const existing = await this.findByCourseUniversityCity(
+      data.course_id,
+      data.university_id,
+      data.city_id,
+    );
+    if (existing) return existing;
+
+    return this.create(data);
+  }
+
   async create(data: Partial<CourseUniversity>) {
     const courseUniversity = this.repository.create(data);
     return this.repository.save(courseUniversity);

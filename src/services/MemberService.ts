@@ -1,19 +1,30 @@
-import { Injectable } from "@nestjs/common";
+import { ForbiddenException, Injectable } from "@nestjs/common";
 import bcrypt from "bcryptjs";
 import { MemberRepository } from "../repositories/MemberRepository";
 import { TokenRepository } from "../repositories/TokenRepository";
 import { RoleRepository } from "../repositories/RoleRepository";
 import { CourseManagerRepository } from "../repositories/CourseManagerRepository";
 import { CaeManagerRepository } from "../repositories/CaeManagerRepository";
-import { Member } from "../models/member";
+import { StateRepository } from "../repositories/StateRepository";
+import { CityRepository } from "../repositories/CityRepository";
+import { UniversityRepository } from "../repositories/UniversityRepository";
+import { CourseRepository } from "../repositories/CourseRepository";
+import { CourseUniversityRepository } from "../repositories/CourseUniversityRepository";
+import { Member, MemberRegistrationStatus } from "../models/member";
 import { MemberProfileDto } from "../dto/members/member-profile.dto";
 import { AppDataBase } from "../db";
+import { CreateMemberDto } from "../dto/members/create-member.dto";
 
 @Injectable()
 export class MemberService {
   constructor(
     private readonly memberRepository: MemberRepository,
     private readonly tokenRepository: TokenRepository,
+    private readonly stateRepository: StateRepository,
+    private readonly cityRepository: CityRepository,
+    private readonly universityRepository: UniversityRepository,
+    private readonly courseRepository: CourseRepository,
+    private readonly courseUniversityRepository: CourseUniversityRepository,
   ) {}
 
   async getAllMembers() {
@@ -37,6 +48,12 @@ export class MemberService {
     if (members.length === 0)
       throw new Error("No members found with this sponsor");
     return members;
+  }
+
+  async getPendingMembers() {
+    return this.memberRepository.findByRegistrationStatus(
+      MemberRegistrationStatus.PENDING,
+    );
   }
 
   async getMemberBySlug(slug: string): Promise<MemberProfileDto> {
@@ -111,15 +128,36 @@ export class MemberService {
     return profileDto;
   }
 
-  async createMember(memberData: any, password: string) {
+  async createMember(memberData: CreateMemberDto, password: string) {
+    if (memberData.confirm_password && memberData.confirm_password !== password) {
+      throw new Error("Senha e confirmaÃ§Ã£o de senha nÃ£o conferem");
+    }
+
+    const academicData = await this.resolveAcademicData(memberData);
+    const name = this.resolveMemberName(memberData);
+
     const normalizedData = {
-      ...memberData,
+      name,
       cpf: memberData.cpf.replace(/\D/g, ""),
+      phone: memberData.phone,
+      email_personal: memberData.email_personal,
+      email_university: memberData.email_university,
       birth_date: new Date(memberData.birth_date),
       admission_date: new Date(memberData.admission_date),
       ra: String(memberData.ra),
-      biography: memberData.biography || null,
+      city_id: academicData.cityId || memberData.city_id || null,
+      current_semester: memberData.current_semester || null,
+      university_not_applicable: !!memberData.university_not_applicable,
+      course_not_applicable: !!memberData.course_not_applicable,
+      current_semester_not_applicable:
+        !!memberData.current_semester_not_applicable,
+      registration_status: MemberRegistrationStatus.PENDING,
+      biography: memberData.biography || undefined,
     };
+
+    if (!this.isValidCpf(normalizedData.cpf)) {
+      throw new Error("CPF invalido");
+    }
 
     const existing = await this.memberRepository.existsByEmailOrCpfOrRa(
       normalizedData.email_personal,
@@ -146,10 +184,10 @@ export class MemberService {
       sponsor: sponsorId,
     });
 
-    if (memberData.course_university_id) {
+    if (academicData.courseUniversityId) {
       await this.memberRepository.addCourseToMember(
         newMember.id,
-        memberData.course_university_id,
+        academicData.courseUniversityId,
         normalizedData.admission_date,
       );
     }
@@ -157,11 +195,118 @@ export class MemberService {
     const { password: _, ...safeMemberData } = newMember;
     
     // Gerar token de acesso automaticamente após signup
-    const AuthService = (await import('./authService')).AuthService;
-    const authService = new AuthService(this.memberRepository, this.tokenRepository);
-    const accessToken = await authService['generateAccessToken'](newMember.id);
     
-    return { member: safeMemberData, accessToken };
+    return { member: safeMemberData };
+  }
+
+  private resolveMemberName(memberData: CreateMemberDto) {
+    const name = memberData.name?.trim();
+    if (name) return name;
+
+    const composedName = [memberData.first_name, memberData.last_name]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+
+    if (!composedName) throw new Error("Nome do membro Ã© obrigatÃ³rio");
+
+    return composedName;
+  }
+
+  private isValidCpf(cpf: string): boolean {
+    const digits = cpf.replace(/\D/g, "");
+    if (digits.length !== 11) return false;
+    if (/^(\d)\1{10}$/.test(digits)) return false;
+
+    const calculateDigit = (base: string, factor: number) => {
+      const total = base
+        .split("")
+        .reduce((sum, digit) => sum + Number(digit) * factor--, 0);
+      const remainder = (total * 10) % 11;
+      return remainder === 10 ? 0 : remainder;
+    };
+
+    const firstDigit = calculateDigit(digits.slice(0, 9), 10);
+    const secondDigit = calculateDigit(digits.slice(0, 10), 11);
+
+    return firstDigit === Number(digits[9]) && secondDigit === Number(digits[10]);
+  }
+
+  private async resolveAcademicData(memberData: CreateMemberDto): Promise<{
+    cityId?: string;
+    courseUniversityId?: string;
+  }> {
+    let cityId = memberData.city_id;
+
+    if (!cityId && memberData.city_ibge_code && memberData.city_name) {
+      if (!memberData.state_id && !memberData.state_uf) {
+        throw new Error("Estado Ã© obrigatÃ³rio para cadastrar cidade pelo IBGE");
+      }
+
+      const state = memberData.state_id
+        ? await this.stateRepository.findById(memberData.state_id)
+        : await this.stateRepository.findOrCreateByUf(memberData.state_uf!);
+
+      if (!state) throw new Error("Estado nÃ£o encontrado");
+
+      const city = await this.cityRepository.findOrCreateFromIbge({
+        name: memberData.city_name,
+        ibge_code: memberData.city_ibge_code.replace(/\D/g, ""),
+        state_id: state.id,
+      });
+
+      cityId = city?.id;
+    }
+
+    if (memberData.course_university_id) {
+      return { cityId, courseUniversityId: memberData.course_university_id };
+    }
+
+    if (
+      memberData.university_not_applicable ||
+      memberData.course_not_applicable ||
+      !cityId
+    ) {
+      return { cityId };
+    }
+
+    if (
+      !memberData.university_id &&
+      !memberData.university_name &&
+      !memberData.university_emec_code
+    ) {
+      return { cityId };
+    }
+
+    const universityId =
+      memberData.university_id ||
+      (
+        await this.universityRepository.findOrCreateByNormalizedName({
+          name: memberData.university_name || memberData.university_emec_code!,
+          acronym: memberData.university_acronym || null,
+          emec_code: memberData.university_emec_code || null,
+          city_id: cityId,
+          source: memberData.university_emec_code ? "MEC_EMEC_CSV" : "USER_SIGNUP",
+        })
+      )?.id;
+
+    if (!universityId || (!memberData.course_name && !memberData.course_id)) {
+      return { cityId };
+    }
+
+    const courseId =
+      memberData.course_id ||
+      (await this.courseRepository.findOrCreateByName(memberData.course_name!))
+        .id;
+
+    const courseUniversity =
+      await this.courseUniversityRepository.findOrCreate({
+        course_id: courseId,
+        university_id: universityId,
+        city_id: cityId,
+      });
+
+    return { cityId, courseUniversityId: courseUniversity.id };
   }
 
   async updateMember(id: string, updateData: Partial<Member> & { course_university_id?: string }) {
@@ -177,6 +322,135 @@ export class MemberService {
     }
 
     return this.memberRepository.update(id, updateData);
+  }
+
+  async approveMemberRegistration(memberId: string, reviewerId: string) {
+    await this.ensureCanReviewRegistration(memberId, reviewerId);
+    return this.memberRepository.updateRegistrationStatus(
+      memberId,
+      MemberRegistrationStatus.APPROVED,
+      reviewerId,
+    );
+  }
+
+  async rejectMemberRegistration(
+    memberId: string,
+    reviewerId: string,
+    reason?: string,
+  ) {
+    await this.ensureCanReviewRegistration(memberId, reviewerId);
+    return this.memberRepository.updateRegistrationStatus(
+      memberId,
+      MemberRegistrationStatus.REJECTED,
+      reviewerId,
+      reason,
+    );
+  }
+
+  private async ensureCanReviewRegistration(
+    memberId: string,
+    reviewerId: string,
+  ) {
+    const reviewer =
+      await this.memberRepository.findByIdWithRolesAndPermissions(reviewerId);
+    if (!reviewer) throw new Error("Reviewer not found");
+
+    if (reviewer.roles?.some((role) => role.name === "EQUIPE_TECNICA")) {
+      return;
+    }
+
+    const target = await this.memberRepository.findByIdWithRelations(memberId);
+    if (!target) throw new Error("Member not found");
+
+    const activeCourse = target.memberCourses?.find(
+      (memberCourse) => memberCourse.status === "active",
+    );
+    const courseUniversity = activeCourse?.courseUniversity;
+    const cityId = target.city_id || courseUniversity?.city_id;
+    const stateId = target.city?.state?.id || courseUniversity?.city?.state?.id;
+    const courseId = courseUniversity?.course_id;
+
+    const checks = await Promise.all([
+      courseUniversity
+        ? this.isCourseManagerReviewer(reviewerId, courseUniversity.id)
+        : Promise.resolve(false),
+      courseId && target.current_semester
+        ? this.isSemesterHeadReviewer(reviewerId, courseId, target.current_semester)
+        : Promise.resolve(false),
+      cityId ? this.isCarReviewer(reviewerId, cityId) : Promise.resolve(false),
+      stateId ? this.isCaeReviewer(reviewerId, stateId) : Promise.resolve(false),
+    ]);
+
+    if (!checks.some(Boolean)) {
+      throw new ForbiddenException(
+        "VocÃª nÃ£o tem permissÃ£o para validar este cadastro",
+      );
+    }
+  }
+
+  private async isCourseManagerReviewer(
+    reviewerId: string,
+    courseUniversityId: string,
+  ) {
+    const result = await AppDataBase.query(
+      `SELECT 1
+       FROM course_managers
+       WHERE member_id = $1
+         AND course_university_id = $2
+         AND end_date IS NULL
+         AND deleted_at IS NULL
+       LIMIT 1`,
+      [reviewerId, courseUniversityId],
+    );
+    return result.length > 0;
+  }
+
+  private async isSemesterHeadReviewer(
+    reviewerId: string,
+    courseId: string,
+    currentSemester: number,
+  ) {
+    const result = await AppDataBase.query(
+      `SELECT 1
+       FROM program_semester_heads psh
+       JOIN program_semesters ps ON ps.id = psh.program_semester_id
+       WHERE psh.member_id = $1
+         AND ps.course_id = $2
+         AND ps.semester_number = $3
+         AND psh.end_date IS NULL
+         AND psh.deleted_at IS NULL
+       LIMIT 1`,
+      [reviewerId, courseId, currentSemester],
+    );
+    return result.length > 0;
+  }
+
+  private async isCarReviewer(reviewerId: string, cityId: string) {
+    const result = await AppDataBase.query(
+      `SELECT 1
+       FROM car_managers cm
+       JOIN car_cities cc ON cc.car_id = cm.car_id
+       WHERE cm.member_id = $1
+         AND cc.city_id = $2
+       LIMIT 1`,
+      [reviewerId, cityId],
+    );
+    return result.length > 0;
+  }
+
+  private async isCaeReviewer(reviewerId: string, stateId: string) {
+    const result = await AppDataBase.query(
+      `SELECT 1
+       FROM cae_managers cm
+       JOIN caes c ON c.id = cm.cae_id
+       WHERE cm.member_id = $1
+         AND c.state_id = $2
+         AND cm.end_date IS NULL
+         AND cm.deleted_at IS NULL
+       LIMIT 1`,
+      [reviewerId, stateId],
+    );
+    return result.length > 0;
   }
 
   async getMemberRolesAndPermissions(id: string) {

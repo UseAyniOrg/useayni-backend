@@ -3,6 +3,7 @@ import { State } from "./state";
 import { Member } from "./member";
 import { Car } from "./car";
 import { CourseUniversity } from "./courseUniversity";
+import { University } from "./university";
 
 @Entity("cities")
 export class City {
@@ -30,4 +31,7 @@ export class City {
 
   @OneToMany(() => CourseUniversity, (cu) => cu.city)
   courseUniversities: CourseUniversity[];
+
+  @OneToMany(() => University, (university) => university.city)
+  universities: University[];
 }

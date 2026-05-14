@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Put,
   Delete,
   Param,
@@ -20,6 +21,7 @@ import {
   ApiResponse,
   ApiParam,
   ApiBody,
+  ApiBearerAuth,
 } from "@nestjs/swagger";
 import { MemberService } from "../services/MemberService";
 import { CreateMemberDto } from "../dto/members/create-member.dto";
@@ -33,6 +35,44 @@ import { Request } from "express";
 @ApiTags("Members")
 export class MemberController {
   constructor(private readonly memberService: MemberService) {}
+
+  private handleCreateMemberError(error: unknown): never {
+    if (error instanceof HttpException) {
+      throw error;
+    }
+
+    const message =
+      error instanceof Error ? error.message : "Erro ao criar cadastro.";
+
+    const conflictMessages = [
+      "CPF, RA ou email",
+      "CPF, RA or email",
+      "ja cadastrados",
+      "jÃ¡ cadastrados",
+    ];
+
+    if (conflictMessages.some((item) => message.includes(item))) {
+      throw new HttpException({ message }, HttpStatus.CONFLICT);
+    }
+
+    const badRequestMessages = [
+      "CPF invalido",
+      "CPF inv",
+      "Senha",
+      "Nome do membro",
+      "Estado obrigatorio",
+      "Cidade obrigatoria",
+      "Universidade obrigatoria",
+      "Curso obrigatorio",
+      "Semestre atual obrigatorio",
+    ];
+
+    if (badRequestMessages.some((item) => message.includes(item))) {
+      throw new HttpException({ message }, HttpStatus.BAD_REQUEST);
+    }
+
+    throw error;
+  }
 
   @Get()
   @ApiOperation({ summary: "Get all members" })
@@ -52,6 +92,72 @@ export class MemberController {
   @ApiResponse({ status: 404, description: "Member not found" })
   async getMemberBySlug(@Param("slug") slug: string) {
     return this.memberService.getMemberBySlug(slug);
+  }
+
+  @Get("pending")
+  @UseGuards(AuthorizationGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Get pending member registrations" })
+  @ApiResponse({ status: 200, description: "Pending member registrations" })
+  async getPendingMembers() {
+    return this.memberService.getPendingMembers();
+  }
+
+  @Patch(":id/approve")
+  @UseGuards(AuthorizationGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Approve member registration" })
+  @ApiParam({ name: "id", type: String, description: "Member ID" })
+  @ApiResponse({ status: 200, description: "Member registration approved" })
+  async approveMemberRegistration(
+    @Param("id") id: string,
+    @Req() req: Request,
+  ) {
+    const user = req.user!;
+    const data = await this.memberService.approveMemberRegistration(
+      id,
+      user.id,
+    );
+
+    return {
+      message: "Cadastro aprovado com sucesso.",
+      data,
+    };
+  }
+
+  @Patch(":id/reject")
+  @UseGuards(AuthorizationGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Reject member registration" })
+  @ApiParam({ name: "id", type: String, description: "Member ID" })
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        reason: {
+          type: "string",
+          example: "Dados incompletos",
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: "Member registration rejected" })
+  async rejectMemberRegistration(
+    @Param("id") id: string,
+    @Body() body: { reason?: string },
+    @Req() req: Request,
+  ) {
+    const user = req.user!;
+    const data = await this.memberService.rejectMemberRegistration(
+      id,
+      user.id,
+      body.reason,
+    );
+
+    return {
+      message: "Cadastro rejeitado com sucesso.",
+      data,
+    };
   }
 
   @Get("/:id")
@@ -96,16 +202,19 @@ export class MemberController {
   @ApiResponse({ status: 201, description: "Member created successfully" })
   @ApiResponse({ status: 409, description: "CPF, RA or email already exists" })
   async createNewMember(@Body() body: CreateMemberDto) {
-    const { password, ...memberData } = body;
-    const result = await this.memberService.createMember(
-      memberData,
-      password,
-    );
-    return {
-      message: "Membro criado com sucesso!",
-      data: result.member,
-      accessToken: result.accessToken,
-    };
+    try {
+      const result = await this.memberService.createMember(
+        body,
+        body.password,
+      );
+      return {
+        message:
+          "Otimo ter voce conosco, peco apenas mais um pouco de paciencia, seu cadastro esta em analise, sera notificado assim que esse processo for concluido.",
+        data: result.member,
+      };
+    } catch (error) {
+      this.handleCreateMemberError(error);
+    }
   }
 
   @Put("id/:id")
