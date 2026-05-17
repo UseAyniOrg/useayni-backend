@@ -89,4 +89,11 @@ export class Member {
 
   @Column({ length: 255, nullable: true })
   slug: string;
+
+  @Column({
+  type: "varchar",
+  length: 20,
+  default: "PENDING"
+  })
+  status!: string;
 }

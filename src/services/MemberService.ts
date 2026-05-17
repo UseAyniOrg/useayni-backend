@@ -119,6 +119,8 @@ export class MemberService {
       admission_date: new Date(memberData.admission_date),
       ra: String(memberData.ra),
       biography: memberData.biography || null,
+      status: "PENDING",
+
     };
 
     const existing = await this.memberRepository.existsByEmailOrCpfOrRa(
@@ -155,12 +157,12 @@ export class MemberService {
     }
 
     const { password: _, ...safeMemberData } = newMember;
-    
+
     // Gerar token de acesso automaticamente após signup
     const AuthService = (await import('./authService')).AuthService;
     const authService = new AuthService(this.memberRepository, this.tokenRepository);
     const accessToken = await authService['generateAccessToken'](newMember.id);
-    
+
     return { member: safeMemberData, accessToken };
   }
 
@@ -305,5 +307,23 @@ export class MemberService {
       [programSemesterId, memberId]
     );
     await this.tokenRepository.deleteByMemberId(memberId);
+  }
+
+  async approveMember(memberId: string) {
+    const member = await this.memberRepository.findById(memberId);
+    if (!member) {
+      throw new Error("Member not found");
+    }
+    member.status = "APPROVED";
+    return this.memberRepository.update(memberId, member);
+  }
+
+  async rejectMember(memberId: string) {
+    const member = await this.memberRepository.findById(memberId);
+    if (!member) {
+      throw new Error("Member not found");
+   }
+    member.status = "REJECTED";
+    return this.memberRepository.update(memberId, member);
   }
 }

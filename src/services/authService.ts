@@ -15,19 +15,29 @@ export class AuthService {
   ) {}
 
   async login(email: string, password: string, rememberMe?: boolean) {
-    const member = await this.memberRepository.findByEmailWithPassword(email);
-    if (!member) throw new Error("Credenciais inválidas");
+   const member = await this.memberRepository.findByEmailWithPassword(email);
+
+    if (!member) {
+     throw new Error("Credenciais inválidas");
+    }
+
+    if (member.status !== "APPROVED") {
+      throw new Error("Cadastro pendente de aprovação");
+    }
 
     const passwordMatch = await bcrypt.compare(password, member.password);
-    if (!passwordMatch) throw new Error("Credenciais inválidas");
+
+    if (!passwordMatch) {
+      throw new Error("Credenciais inválidas");
+    }
 
     const accessToken = await this.generateAccessToken(member.id);
-    
+
     let refreshToken: string | undefined;
     if (rememberMe) {
       refreshToken = await this.generateRefreshToken(member);
     }
-    
+
     const { password: _, roles, ...memberWithoutPassword } = member;
 
     return {
@@ -57,7 +67,7 @@ export class AuthService {
 
     const accessToken = await this.generateAccessToken(member.id);
     const newRefreshToken = await this.generateRefreshToken(member);
-    
+
     return { accessToken, refreshToken: newRefreshToken };
   }
 
@@ -173,11 +183,11 @@ export class AuthService {
     });
     return token;
   }
-  
+
   async logout(accessToken: string) {
     const tokenData = await this.tokenRepository.findByToken(accessToken);
     if (!tokenData) throw new Error("Token não encontrado");
-    
+
     await this.tokenRepository.deleteByMemberId(tokenData.memberId);
   }
 
