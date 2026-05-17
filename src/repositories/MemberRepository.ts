@@ -73,6 +73,10 @@ export class MemberRepository {
     return this.findById(id);
   }
 
+  async delete(id: string) {
+  await this.repository.delete(id);
+}
+
   async updateRegistrationStatus(
     id: string,
     status: MemberRegistrationStatus,

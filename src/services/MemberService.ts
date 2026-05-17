@@ -27,6 +27,32 @@ export class MemberService {
     private readonly courseUniversityRepository: CourseUniversityRepository,
   ) {}
 
+  async getMembersForApproval(reviewerId: string) {
+  const reviewer =
+    await this.memberRepository.findByIdWithRolesAndPermissions(reviewerId);
+
+  if (!reviewer) throw new Error("Reviewer not found");
+
+  const pendingMembers =
+    await this.memberRepository.findByRegistrationStatus(
+      MemberRegistrationStatus.PENDING,
+    );
+
+  const result: Member[] = [];
+
+  for (const member of pendingMembers) {
+    const canAccess = await this.canReviewerAccessMember(
+      reviewerId,
+      member,
+    );
+
+    if (canAccess) {
+      result.push(member);
+    }
+  }
+
+  return result;
+  }
   async getAllMembers() {
     return this.memberRepository.findAll();
   }
@@ -55,7 +81,36 @@ export class MemberService {
       MemberRegistrationStatus.PENDING,
     );
   }
+  async getPendingMembersForReviewer(reviewerId: string): Promise<Member[]> {
+  const reviewer =
+    await this.memberRepository.findByIdWithRolesAndPermissions(reviewerId);
 
+  if (!reviewer) throw new Error("Reviewer not found");
+
+  const pending = await this.memberRepository.findByRegistrationStatus(
+    MemberRegistrationStatus.PENDING,
+  );
+
+  // equipe técnica vê tudo
+  if (reviewer.roles?.some(r => r.name === "EQUIPE_TECNICA")) {
+    return pending;
+  }
+
+  const filtered = [];
+
+  for (const member of pending) {
+    const canAccess = await this.canReviewerAccessMember(
+    reviewerId,
+    member,
+  );
+
+    if (canAccess) {
+      filtered.push(member);
+    }
+  }
+
+  return filtered;
+}
   async getMemberBySlug(slug: string): Promise<MemberProfileDto> {
     const member = await this.memberRepository.findByNameSlug(slug);
     if (!member) throw new Error("Member not found");
@@ -331,26 +386,35 @@ export class MemberService {
 
   async approveMemberRegistration(memberId: string, reviewerId: string) {
     await this.ensureCanReviewRegistration(memberId, reviewerId);
-    return this.memberRepository.updateRegistrationStatus(
-      memberId,
-      MemberRegistrationStatus.APPROVED,
-      reviewerId,
+   const updated = await this.memberRepository.updateRegistrationStatus(
+    memberId,
+    MemberRegistrationStatus.APPROVED,
+    reviewerId,
     );
+
+    return {
+    message: "Member approved successfully",
+    member: updated,
+    };
   }
 
   async rejectMemberRegistration(
-    memberId: string,
-    reviewerId: string,
-    reason?: string,
-  ) {
-    await this.ensureCanReviewRegistration(memberId, reviewerId);
-    return this.memberRepository.updateRegistrationStatus(
-      memberId,
-      MemberRegistrationStatus.REJECTED,
-      reviewerId,
-      reason,
-    );
-  }
+  memberId: string,
+  reviewerId: string,
+  reason?: string,
+) {
+  await this.ensureCanReviewRegistration(memberId, reviewerId);
+
+  const member = await this.memberRepository.findById(memberId);
+  if (!member) throw new Error("Member not found");
+
+  await this.memberRepository.delete(memberId);
+
+  return {
+    message: "Member rejected and deleted successfully",
+    memberId,
+  };
+}
 
   private async ensureCanReviewRegistration(
     memberId: string,
@@ -586,21 +650,39 @@ export class MemberService {
     await this.tokenRepository.deleteByMemberId(memberId);
   }
 
-  async approveMember(memberId: string) {
-    const member = await this.memberRepository.findById(memberId);
-    if (!member) {
-      throw new Error("Member not found");
-    }
-    member.status = "APPROVED";
-    return this.memberRepository.update(memberId, member);
-  }
+  private async canReviewerAccessMember(
+  reviewerId: string,
+  member: Member,
+): Promise<boolean> {
+  const activeCourse = member.memberCourses?.find(
+    (mc) => mc.status === "active",
+  );
 
-  async rejectMember(memberId: string) {
-    const member = await this.memberRepository.findById(memberId);
-    if (!member) {
-      throw new Error("Member not found");
-   }
-    member.status = "REJECTED";
-    return this.memberRepository.update(memberId, member);
-  }
+  const courseUniversity = activeCourse?.courseUniversity;
+
+  const cityId = member.city_id || courseUniversity?.city_id;
+  const stateId = member.city?.state?.id || courseUniversity?.city?.state?.id;
+  const courseId = courseUniversity?.course_id;
+
+  const checks = await Promise.all([
+    courseUniversity
+      ? this.isCourseManagerReviewer(reviewerId, courseUniversity.id)
+      : false,
+
+    courseId && member.current_semester
+      ? this.isSemesterHeadReviewer(
+          reviewerId,
+          courseId,
+          member.current_semester,
+        )
+      : false,
+
+    cityId ? this.isCarReviewer(reviewerId, cityId) : false,
+
+    stateId ? this.isCaeReviewer(reviewerId, stateId) : false,
+  ]);
+
+  return checks.some(Boolean);
 }
+}
+

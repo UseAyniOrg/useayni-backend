@@ -13,9 +13,27 @@ const PENDING_REGISTRATION_MESSAGE =
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly memberRepository: MemberRepository,
-    private readonly tokenRepository: TokenRepository,
-  ) {}
+  private readonly memberRepository: MemberRepository,
+  private readonly tokenRepository: TokenRepository,
+) {}
+
+  private assertMemberCanAccessSystem(member: Member) {
+  if (member.registration_status === MemberRegistrationStatus.PENDING) {
+    throw new ForbiddenException(PENDING_REGISTRATION_MESSAGE);
+  }
+
+  if (member.registration_status === MemberRegistrationStatus.REJECTED) {
+    throw new ForbiddenException(
+      member.registration_rejection_reason
+        ? `Seu cadastro foi rejeitado. Motivo: ${member.registration_rejection_reason}`
+        : "Seu cadastro foi rejeitado.",
+    );
+  }
+
+  if (member.registration_status !== MemberRegistrationStatus.APPROVED) {
+    throw new ForbiddenException("Seu cadastro ainda não foi aprovado.");
+  }
+}
 
  async login(email: string, password: string, rememberMe?: boolean) {
   const member = await this.memberRepository.findByEmailWithPassword(email);
@@ -30,17 +48,7 @@ export class AuthService {
     throw new UnauthorizedException("Credenciais invalidas");
   }
 
-  if (member.registration_status === MemberRegistrationStatus.PENDING) {
-    throw new ForbiddenException(PENDING_REGISTRATION_MESSAGE);
-  }
-
-  if (member.registration_status === MemberRegistrationStatus.REJECTED) {
-    throw new ForbiddenException(
-      member.registration_rejection_reason
-        ? `Seu cadastro foi rejeitado. Motivo: ${member.registration_rejection_reason}`
-        : "Seu cadastro foi rejeitado.",
-    );
-  }
+  this.assertMemberCanAccessSystem(member);
 
   const accessToken = await this.generateAccessToken(member.id);
 
@@ -82,13 +90,7 @@ export class AuthService {
     const member = await this.memberRepository.findById(decoded.id);
     if (!member) throw new Error("Usuario nao encontrado");
 
-    if (member.registration_status === MemberRegistrationStatus.PENDING) {
-      throw new ForbiddenException(PENDING_REGISTRATION_MESSAGE);
-    }
-
-    if (member.registration_status === MemberRegistrationStatus.REJECTED) {
-      throw new ForbiddenException("Seu cadastro foi rejeitado.");
-    }
+    this.assertMemberCanAccessSystem(member);
 
     const accessToken = await this.generateAccessToken(member.id);
     const newRefreshToken = await this.generateRefreshToken(member);
