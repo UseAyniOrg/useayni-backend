@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AppDataBase } from "../db";
-import { Member } from "../models/member";
+import { Member, MemberRegistrationStatus } from "../models/member";
 
 @Injectable()
 export class MemberRepository {
@@ -8,6 +8,23 @@ export class MemberRepository {
 
   async findAll() {
     return this.repository.find();
+  }
+
+  async findByRegistrationStatus(status: MemberRegistrationStatus) {
+    return this.repository.find({
+      where: { registration_status: status },
+      relations: [
+        "city",
+        "city.state",
+        "roles",
+        "memberCourses",
+        "memberCourses.courseUniversity",
+        "memberCourses.courseUniversity.course",
+        "memberCourses.courseUniversity.university",
+        "memberCourses.courseUniversity.city",
+      ],
+      order: { admission_date: "DESC" },
+    });
   }
 
   async findById(id: string) {
@@ -56,6 +73,24 @@ export class MemberRepository {
     return this.findById(id);
   }
 
+  async updateRegistrationStatus(
+    id: string,
+    status: MemberRegistrationStatus,
+    reviewerId: string,
+    rejectionReason?: string,
+  ) {
+    await this.repository.update(id, {
+      registration_status: status,
+      registration_reviewed_by: reviewerId,
+      registration_reviewed_at: new Date(),
+      registration_rejection_reason:
+        status === MemberRegistrationStatus.REJECTED
+          ? rejectionReason || null
+          : null,
+    });
+    return this.findByIdWithRelations(id);
+  }
+
   async findByIdWithRolesAndPermissions(id: string) {
     return this.repository.findOne({
       where: { id },
@@ -73,6 +108,8 @@ export class MemberRepository {
         "memberCourses.courseUniversity",
         "memberCourses.courseUniversity.course",
         "memberCourses.courseUniversity.university",
+        "memberCourses.courseUniversity.city",
+        "memberCourses.courseUniversity.city.state",
       ],
     });
   }

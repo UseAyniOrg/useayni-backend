@@ -1,11 +1,14 @@
-import { Injectable } from "@nestjs/common";
+import { ForbiddenException, Injectable, UnauthorizedException } from "@nestjs/common";
 import * as jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { authConfig } from "../config/auth";
-import { Member } from "../models/member";
+import { Member, MemberRegistrationStatus } from "../models/member";
 import { MemberRepository } from "../repositories/MemberRepository";
 import { TokenRepository } from "../repositories/TokenRepository";
 import { JWTPayload, MemberPosition } from "../helpers/tokenHelper";
+
+const PENDING_REGISTRATION_MESSAGE =
+  "Otimo ter voce conosco, peco apenas mais um pouco de paciencia, seu cadastro esta em analise, sera notificado assim que esse processo for concluido.";
 
 @Injectable()
 export class AuthService {
@@ -14,41 +17,55 @@ export class AuthService {
     private readonly tokenRepository: TokenRepository,
   ) {}
 
-  async login(email: string, password: string, rememberMe?: boolean) {
-   const member = await this.memberRepository.findByEmailWithPassword(email);
+ async login(email: string, password: string, rememberMe?: boolean) {
+  const member = await this.memberRepository.findByEmailWithPassword(email);
 
-    if (!member) {
-     throw new Error("Credenciais inválidas");
-    }
-
-    if (member.status !== "APPROVED") {
-      throw new Error("Cadastro pendente de aprovação");
-    }
-
-    const passwordMatch = await bcrypt.compare(password, member.password);
-
-    if (!passwordMatch) {
-      throw new Error("Credenciais inválidas");
-    }
-
-    const accessToken = await this.generateAccessToken(member.id);
-
-    let refreshToken: string | undefined;
-    if (rememberMe) {
-      refreshToken = await this.generateRefreshToken(member);
-    }
-
-    const { password: _, roles, ...memberWithoutPassword } = member;
-
-    return {
-      member: { ...memberWithoutPassword, roles: roles?.map(r => r.name) || [] },
-      accessToken,
-      refreshToken,
-    };
+  if (!member) {
+    throw new UnauthorizedException("Credenciais invalidas");
   }
+
+  const passwordMatch = await bcrypt.compare(password, member.password);
+
+  if (!passwordMatch) {
+    throw new UnauthorizedException("Credenciais invalidas");
+  }
+
+  if (member.registration_status === MemberRegistrationStatus.PENDING) {
+    throw new ForbiddenException(PENDING_REGISTRATION_MESSAGE);
+  }
+
+  if (member.registration_status === MemberRegistrationStatus.REJECTED) {
+    throw new ForbiddenException(
+      member.registration_rejection_reason
+        ? `Seu cadastro foi rejeitado. Motivo: ${member.registration_rejection_reason}`
+        : "Seu cadastro foi rejeitado.",
+    );
+  }
+
+  const accessToken = await this.generateAccessToken(member.id);
+
+  let refreshToken: string | undefined;
+
+  if (rememberMe) {
+    refreshToken = await this.generateRefreshToken(member);
+  }
+
+  const { password: _, roles, ...memberWithoutPassword } = member;
+
+  return {
+    member: {
+      ...memberWithoutPassword,
+      roles: roles?.map((r) => r.name) || [],
+    },
+    accessToken,
+    refreshToken,
+  };
+}
+
+
   async getProfile(userId: string) {
     const member = await this.memberRepository.findById(userId);
-    if (!member) throw new Error("Usuário não encontrado");
+    if (!member) throw new Error("Usuario nao encontrado");
     return member;
   }
 
@@ -57,13 +74,21 @@ export class AuthService {
 
     const tokenData = await this.tokenRepository.findByToken(refreshToken);
     if (!tokenData || tokenData.expiresAt < new Date()) {
-      throw new Error("Refresh token inválido ou expirado");
+      throw new Error("Refresh token invalido ou expirado");
     }
 
     const secret = authConfig.jwt.refreshSecret;
     const decoded = jwt.verify(refreshToken, secret) as { id: string };
     const member = await this.memberRepository.findById(decoded.id);
-    if (!member) throw new Error("Usuário não encontrado");
+    if (!member) throw new Error("Usuario nao encontrado");
+
+    if (member.registration_status === MemberRegistrationStatus.PENDING) {
+      throw new ForbiddenException(PENDING_REGISTRATION_MESSAGE);
+    }
+
+    if (member.registration_status === MemberRegistrationStatus.REJECTED) {
+      throw new ForbiddenException("Seu cadastro foi rejeitado.");
+    }
 
     const accessToken = await this.generateAccessToken(member.id);
     const newRefreshToken = await this.generateRefreshToken(member);
@@ -74,7 +99,7 @@ export class AuthService {
   async validateAccessToken(accessToken: string) {
     const tokenData = await this.tokenRepository.findByToken(accessToken);
     if (!tokenData || tokenData.expiresAt < new Date()) {
-      throw new Error("Token inválido ou expirado");
+      throw new Error("Token invalido ou expirado");
     }
     return { valid: true };
   }
@@ -84,54 +109,47 @@ export class AuthService {
 
     await this.tokenRepository.deleteByMemberIdAndType(memberId, "access");
 
-    // Buscar membro com todas as posições
     const memberData = await this.memberRepository.findByIdWithPositions(memberId);
-    if (!memberData) throw new Error("Membro não encontrado");
+    if (!memberData) throw new Error("Membro nao encontrado");
 
-    const roles = memberData.roles?.map(role => role.name) || [];
-    const isActive = memberData.memberCourses?.some(mc => mc.status === 'active') || false;
-
-    // Montar posições
+    const roles = memberData.roles?.map((role) => role.name) || [];
+    const isActive = memberData.memberCourses?.some((mc) => mc.status === "active") || false;
     const positions: MemberPosition[] = [];
 
-    // REPRESENTANTE
     if (memberData.positions.semesterHeads) {
       memberData.positions.semesterHeads.forEach((sh: any) => {
         positions.push({
-          type: 'REPRESENTANTE',
+          type: "REPRESENTANTE",
           id: sh.program_semester_id,
-          name: `${sh.semester_number}º Semestre - ${sh.course_name}`,
+          name: `${sh.semester_number} Semestre - ${sh.course_name}`,
         });
       });
     }
 
-    // DIRIGENTE
     if (memberData.positions.courseManagers) {
       memberData.positions.courseManagers.forEach((cm: any) => {
         positions.push({
-          type: 'DIRIGENTE',
+          type: "DIRIGENTE",
           id: cm.course_university_id,
           name: `${cm.course_name} - ${cm.university_name} - ${cm.city_name}`,
         });
       });
     }
 
-    // CAR
     if (memberData.positions.carManagers) {
       memberData.positions.carManagers.forEach((cm: any) => {
         positions.push({
-          type: 'CAR',
+          type: "CAR",
           id: cm.car_id,
           name: cm.car_name,
         });
       });
     }
 
-    // CAE
     if (memberData.positions.caeManagers) {
       memberData.positions.caeManagers.forEach((cm: any) => {
         positions.push({
-          type: 'CAE',
+          type: "CAE",
           id: cm.cae_id,
           name: `${cm.cae_name} - ${cm.state_name}`,
         });
@@ -197,7 +215,7 @@ export class AuthService {
     try {
       return jwt.verify(token, authConfig.jwt.secret) as JWTPayload;
     } catch (error) {
-      throw new Error("Token inválido ou expirado");
+      throw new Error("Token invalido ou expirado");
     }
   }
 

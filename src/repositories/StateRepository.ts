@@ -17,4 +17,16 @@ export class StateRepository {
   async findByUf(uf: string) {
     return this.repository.findOne({ where: { uf }, relations: ["cities"] });
   }
+
+  async findOrCreateByUf(uf: string, name?: string) {
+    const normalizedUf = uf.trim().toUpperCase();
+    const existing = await this.findByUf(normalizedUf);
+    if (existing) return existing;
+
+    const state = this.repository.create({
+      uf: normalizedUf,
+      name: name || normalizedUf,
+    });
+    return this.repository.save(state);
+  }
 }

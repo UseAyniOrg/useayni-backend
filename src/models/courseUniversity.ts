@@ -30,6 +30,21 @@ export class CourseUniversity {
   @JoinColumn({ name: "city_id" })
   city!: City;
 
+  @Column({ type: "varchar", length: 50, nullable: true })
+  external_course_id?: string | null;
+
+  @Column({ type: "varchar", length: 50, nullable: true })
+  source?: string | null;
+
+  @Column({ type: "varchar", length: 100, nullable: true })
+  degree_type?: string | null;
+
+  @Column({ type: "varchar", length: 100, nullable: true })
+  modality?: string | null;
+
+  @Column({ type: "varchar", length: 100, nullable: true })
+  academic_level?: string | null;
+
   @OneToMany(() => MemberCourse, (mc) => mc.courseUniversity)
   memberCourses!: MemberCourse[];
 

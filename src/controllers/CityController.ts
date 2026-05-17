@@ -11,8 +11,21 @@ export class CityController {
   @Get()
   @ApiOperation({ summary: 'List all cities' })
   @ApiQuery({ name: 'stateId', required: false, description: 'Filter by state ID' })
+  @ApiQuery({ name: 'state_id', required: false, description: 'Filter by state ID' })
+  @ApiQuery({ name: 'stateUf', required: false, description: 'Filter by state UF' })
   @ApiResponse({ status: 200, description: 'List of cities' })
-  async findAll(@Query('stateId') stateId?: string) {
+  async findAll(
+    @Query('stateId') stateId?: string,
+    @Query('state_id') state_id?: string,
+    @Query('stateUf') stateUf?: string,
+  ) {
+    stateId = stateId || state_id;
+    if (stateUf) {
+      return this.cityRepository.findByStateUf(stateUf);
+    }
+    if (stateId && stateId.length === 2) {
+      return this.cityRepository.findByStateUf(stateId);
+    }
     if (stateId) {
       return this.cityRepository.findByState(stateId);
     }

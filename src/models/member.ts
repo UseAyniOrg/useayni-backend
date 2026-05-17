@@ -4,6 +4,12 @@ import { City } from "./city";
 import { Car } from "./car";
 import { MemberCourse } from "./memberCourse";
 
+export enum MemberRegistrationStatus {
+  PENDING = "pending",
+  APPROVED = "approved",
+  REJECTED = "rejected",
+}
+
 @Entity("members")
 export class Member {
   @PrimaryGeneratedColumn("uuid")
@@ -40,7 +46,7 @@ export class Member {
   memberCourses?: MemberCourse[];
 
   @Column({ type: "uuid", nullable: true })
-  city_id?: string;
+  city_id?: string | null;
 
   @ManyToOne(() => City, (city) => city.members)
   @JoinColumn({ name: "city_id" })
@@ -49,8 +55,40 @@ export class Member {
   @Column({ type: "date" })
   admission_date!: Date;
 
+  @Column({ type: "int", nullable: true })
+  current_semester?: number | null;
+
+  @Column({ default: false })
+  university_not_applicable!: boolean;
+
+  @Column({ default: false })
+  course_not_applicable!: boolean;
+
+  @Column({ default: false })
+  current_semester_not_applicable!: boolean;
+
+  @Column({
+    type: "varchar",
+    length: 20,
+    default: MemberRegistrationStatus.PENDING,
+  })
+  registration_status!: MemberRegistrationStatus;
+
   @Column({ type: "uuid", nullable: true })
-  sponsor?: string;
+  registration_reviewed_by?: string | null;
+
+  @ManyToOne(() => Member)
+  @JoinColumn({ name: "registration_reviewed_by" })
+  registrationReviewer?: Member;
+
+  @Column({ type: "timestamp with time zone", nullable: true })
+  registration_reviewed_at?: Date;
+
+  @Column({ type: "text", nullable: true })
+  registration_rejection_reason?: string | null;
+
+  @Column({ type: "uuid", nullable: true })
+  sponsor?: string | null;
 
   @ManyToMany(() => Role, (role) => role.members)
   @JoinTable({

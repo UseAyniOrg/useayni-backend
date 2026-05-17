@@ -13,10 +13,14 @@ export class CourseController {
   @Get()
   @ApiOperation({ summary: 'List all courses' })
   @ApiQuery({ name: 'universityId', required: false, description: 'Filter by university ID' })
+  @ApiQuery({ name: 'cityId', required: false, description: 'Filter by city ID' })
   @ApiResponse({ status: 200, description: 'List of courses' })
-  async findAll(@Query('universityId') universityId?: string) {
+  async findAll(
+    @Query('universityId') universityId?: string,
+    @Query('cityId') cityId?: string,
+  ) {
     if (universityId) {
-      return this.courseRepository.findByUniversity(universityId);
+      return this.courseRepository.findByUniversity(universityId, cityId);
     }
     return this.courseRepository.findAll();
   }
