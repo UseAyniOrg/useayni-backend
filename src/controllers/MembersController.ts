@@ -103,7 +103,7 @@ export class MemberController {
     return this.memberService.getPendingMembers();
   }
 
-  @Patch(":id/approve")
+  @Patch(':id/approve')
   @UseGuards(AuthorizationGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Approve member registration" })
@@ -234,7 +234,7 @@ export class MemberController {
     @Req() req: Request,
   ) {
     const user = req.user!;
-    
+
     // Apenas o próprio membro ou equipe técnica pode atualizar
     if (user.id !== id && !user.roles.includes('EQUIPE_TECNICA')) {
       throw new UnauthorizedException('Você não tem permissão para atualizar este membro');
