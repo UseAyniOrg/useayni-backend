@@ -57,6 +57,36 @@ export class MemberService {
     return this.memberRepository.findAll();
   }
 
+  async getSponsorOptions() {
+    const members = await this.memberRepository.findSponsorOptions();
+
+    return members.map((member) => {
+      const activeCourse =
+        member.memberCourses?.find((mc) => mc.status === "active") ||
+        member.memberCourses?.[0];
+      const courseUniversity = activeCourse?.courseUniversity;
+
+      return {
+        id: member.id,
+        name: member.name,
+        slug: member.slug,
+        profile_picture_url: member.profile_picture_url,
+        course: courseUniversity?.course
+          ? {
+              id: courseUniversity.course.id,
+              name: courseUniversity.course.name,
+            }
+          : undefined,
+        university: courseUniversity?.university
+          ? {
+              id: courseUniversity.university.id,
+              name: courseUniversity.university.name,
+            }
+          : undefined,
+      };
+    });
+  }
+
   async getMemberById(id: string) {
     const member = await this.memberRepository.findByIdWithRelations(id);
     if (!member) throw new Error("Member not found");
@@ -183,7 +213,11 @@ export class MemberService {
     return profileDto;
   }
 
-  async createMember(memberData: CreateMemberDto, password: string) {
+  async createMember(
+    memberData: CreateMemberDto,
+    password: string,
+    defaultSponsorMemberId?: string,
+  ) {
     if (memberData.confirm_password && memberData.confirm_password !== password) {
       throw new Error("Senha e confirmaÃ§Ã£o de senha nÃ£o conferem");
     }
@@ -224,13 +258,10 @@ export class MemberService {
 
     if (existing) throw new Error("CPF, RA ou email já cadastrados");
 
-    let sponsorId = null;
-    if (memberData.sponsor) {
-      const sponsorMember = await this.memberRepository.findByName(
-        memberData.sponsor,
-      );
-      sponsorId = sponsorMember?.id || null;
-    }
+    const sponsorId = await this.resolveSponsorId(
+      memberData.sponsor,
+      defaultSponsorMemberId,
+    );
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -257,6 +288,41 @@ export class MemberService {
 
     return { member: safeMemberData, accessToken };
 
+  }
+
+  private async resolveSponsorId(
+    sponsor?: string,
+    defaultSponsorMemberId?: string,
+  ): Promise<string | null> {
+    const sponsorValue = sponsor?.trim();
+    const defaultSponsorValue = defaultSponsorMemberId?.trim();
+
+    if (defaultSponsorValue && !this.isUuid(defaultSponsorValue)) {
+      throw new Error("memberId deve ser um UUID valido");
+    }
+
+    const selectedSponsor = sponsorValue || defaultSponsorValue;
+    if (!selectedSponsor) return null;
+
+    if (this.isUuid(selectedSponsor)) {
+      const sponsorMember =
+        await this.memberRepository.findById(selectedSponsor);
+
+      if (!sponsorMember) {
+        throw new Error("Padrinho informado nao encontrado");
+      }
+
+      return sponsorMember.id;
+    }
+
+    const sponsorMember = await this.memberRepository.findByName(selectedSponsor);
+    return sponsorMember?.id || null;
+  }
+
+  private isUuid(value: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value,
+    );
   }
 
   private resolveMemberName(memberData: CreateMemberDto) {

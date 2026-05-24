@@ -93,6 +93,8 @@ export class UniversityController {
   }
 
   @Post()
+  @UseGuards(AuthorizationGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create university' })
   @ApiBody({ type: CreateUniversityDto })
   @ApiResponse({ status: 201, description: 'University created' })
