@@ -67,6 +67,7 @@ export class MemberController {
       "Universidade obrigatoria",
       "Curso obrigatorio",
       "Semestre atual obrigatorio",
+      "Data de ingresso",
       "Padrinho",
       "memberId",
     ];

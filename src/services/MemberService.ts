@@ -232,7 +232,7 @@ export class MemberService {
       email_personal: memberData.email_personal,
       email_university: memberData.email_university,
       birth_date: new Date(memberData.birth_date),
-      admission_date: new Date(memberData.admission_date),
+      admission_date: this.resolveDateOnly(memberData.admission_date),
       ra: String(memberData.ra),
 
       city_id: academicData.cityId || memberData.city_id || null,
@@ -323,6 +323,15 @@ export class MemberService {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
       value,
     );
+  }
+
+  private resolveDateOnly(value: string): Date {
+    const match = value.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (!match) {
+      throw new Error("Data de ingresso invalida");
+    }
+
+    return match[1] as unknown as Date;
   }
 
   private resolveMemberName(memberData: CreateMemberDto) {

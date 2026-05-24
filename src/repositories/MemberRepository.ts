@@ -196,10 +196,12 @@ export class MemberRepository {
   async addCourseToMember(
     memberId: string,
     courseUniversityId: string,
-    startedAt?: Date,
+    startedAt?: Date | string,
   ) {
     const dateStr =
-      (startedAt || new Date()).toISOString().split("T")[0];
+      typeof startedAt === "string"
+        ? startedAt
+        : (startedAt || new Date()).toISOString().split("T")[0];
     await this.repository.manager.query(
       `INSERT INTO member_courses (member_id, course_university_id, status, started_at)
        VALUES ($1, $2, 'active', $3)
