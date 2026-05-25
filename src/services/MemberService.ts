@@ -190,6 +190,8 @@ export class MemberService {
 
     const academicData = await this.resolveAcademicData(memberData);
     const name = this.resolveMemberName(memberData);
+    const [year, month, day] = memberData.admission_date.split('-').map(Number);
+    const admission_date = new Date(year, month-1, day);
 
     const normalizedData = {
       name,
@@ -198,7 +200,7 @@ export class MemberService {
       email_personal: memberData.email_personal,
       email_university: memberData.email_university,
       birth_date: new Date(memberData.birth_date),
-      admission_date: new Date(memberData.admission_date),
+      admission_date,
       ra: String(memberData.ra),
 
       city_id: academicData.cityId || memberData.city_id || null,

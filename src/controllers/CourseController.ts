@@ -50,9 +50,9 @@ export class CourseController {
   @ApiResponse({ status: 400, description: 'Invalid data' })
   async linkUniversity(@Body() data: LinkCourseUniversityDto) {
     const result = await AppDataBase.query(
-      `INSERT INTO course_universities (course_id, university_id, city_id) 
-       VALUES ($1, $2, $3) 
-       ON CONFLICT (course_id, university_id, city_id) DO UPDATE SET updated_at = now() 
+      `INSERT INTO course_universities (course_id, university_id, city_id)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (course_id, university_id, city_id) DO UPDATE SET updated_at = now()
        RETURNING *`,
       [data.courseId, data.universityId, data.cityId]
     );
@@ -66,9 +66,9 @@ export class CourseController {
   @ApiResponse({ status: 400, description: 'Invalid data' })
   async createSemester(@Body() data: CreateProgramSemesterDto) {
     const result = await AppDataBase.query(
-      `INSERT INTO program_semesters (course_id, semester_number) 
-       VALUES ($1, $2) 
-       ON CONFLICT (course_id, semester_number) DO UPDATE SET updated_at = now() 
+      `INSERT INTO program_semesters (course_id, semester_number)
+       VALUES ($1, $2)
+       ON CONFLICT (course_id, semester_number) DO UPDATE SET updated_at = now()
        RETURNING *`,
       [data.courseId, data.semester_number]
     );
@@ -82,9 +82,9 @@ export class CourseController {
   @ApiResponse({ status: 400, description: 'Invalid data' })
   async createAcademicTerm(@Body() data: CreateAcademicTermDto) {
     const result = await AppDataBase.query(
-      `INSERT INTO academic_terms (year, term, starts_at, ends_at) 
-       VALUES ($1, $2, $3, $4) 
-       ON CONFLICT (year, term) DO UPDATE SET updated_at = now() 
+      `INSERT INTO academic_terms (year, term, starts_at, ends_at)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (year, term) DO UPDATE SET updated_at = now()
        RETURNING *`,
       [data.year, data.term, data.starts_at || null, data.ends_at || null]
     );
@@ -98,9 +98,9 @@ export class CourseController {
   @ApiResponse({ status: 400, description: 'Invalid data' })
   async createSemesterOffering(@Body() data: CreateSemesterOfferingDto) {
     const result = await AppDataBase.query(
-      `INSERT INTO semester_offerings (course_university_id, program_semester_id, academic_term_id, status) 
-       VALUES ($1, $2, $3, $4) 
-       ON CONFLICT (course_university_id, program_semester_id, academic_term_id) DO UPDATE SET updated_at = now() 
+      `INSERT INTO semester_offerings (course_university_id, program_semester_id, academic_term_id, status)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (course_university_id, program_semester_id, academic_term_id) DO UPDATE SET updated_at = now()
        RETURNING *`,
       [data.course_university_id, data.program_semester_id, data.academic_term_id, data.status || 'planned']
     );
@@ -114,9 +114,9 @@ export class CourseController {
   @ApiResponse({ status: 400, description: 'Invalid data' })
   async createEnrollment(@Body() data: CreateEnrollmentDto) {
     const result = await AppDataBase.query(
-      `INSERT INTO enrollments (member_id, semester_offering_id, status) 
-       VALUES ($1, $2, $3) 
-       ON CONFLICT (member_id, semester_offering_id) DO UPDATE SET updated_at = now() 
+      `INSERT INTO enrollments (member_id, semester_offering_id, status)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (member_id, semester_offering_id) DO UPDATE SET updated_at = now()
        RETURNING *`,
       [data.member_id, data.semester_offering_id, data.status || 'active']
     );
