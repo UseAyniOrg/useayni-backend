@@ -14,6 +14,7 @@ import {
   UnauthorizedException,
   UseGuards,
   Req,
+  Query,
 } from "@nestjs/common";
 import {
   ApiTags,
@@ -22,6 +23,7 @@ import {
   ApiParam,
   ApiBody,
   ApiBearerAuth,
+  ApiQuery,
 } from "@nestjs/swagger";
 import { MemberService } from "../services/MemberService";
 import { CreateMemberDto } from "../dto/members/create-member.dto";
@@ -65,6 +67,9 @@ export class MemberController {
       "Universidade obrigatoria",
       "Curso obrigatorio",
       "Semestre atual obrigatorio",
+      "Data de ingresso",
+      "Padrinho",
+      "memberId",
     ];
 
     if (badRequestMessages.some((item) => message.includes(item))) {
@@ -75,10 +80,19 @@ export class MemberController {
   }
 
   @Get()
+  @UseGuards(AuthorizationGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: "Get all members" })
   @ApiResponse({ status: 200, description: "List of all members" })
   async getAllMembers() {
     return this.memberService.getAllMembers();
+  }
+
+  @Get("sponsors/options")
+  @ApiOperation({ summary: "Get sponsor options for signup" })
+  @ApiResponse({ status: 200, description: "List of sponsor options" })
+  async getSponsorOptions() {
+    return this.memberService.getSponsorOptions();
   }
 
   @Get("profile/:slug")
@@ -161,6 +175,8 @@ export class MemberController {
   }
 
   @Get("/:id")
+  @UseGuards(AuthorizationGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: "Get member by ID" })
   @ApiParam({
     name: "id",
@@ -174,6 +190,8 @@ export class MemberController {
   }
 
   @Get("email/:email")
+  @UseGuards(AuthorizationGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: "Get member by email" })
   @ApiParam({ name: "email", type: String, example: "user@example.com" })
   @ApiResponse({ status: 200, description: "Member found" })
@@ -183,6 +201,8 @@ export class MemberController {
   }
 
   @Get("sponsor/:sponsorId")
+  @UseGuards(AuthorizationGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: "Get members by sponsor" })
   @ApiParam({
     name: "sponsorId",
@@ -199,13 +219,23 @@ export class MemberController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: "Create new member (signup)" })
   @ApiBody({ type: CreateMemberDto })
+  @ApiQuery({
+    name: "memberId",
+    required: false,
+    type: String,
+    description: "Optional sponsor member ID used as the default signup sponsor",
+  })
   @ApiResponse({ status: 201, description: "Member created successfully" })
   @ApiResponse({ status: 409, description: "CPF, RA or email already exists" })
-  async createNewMember(@Body() body: CreateMemberDto) {
+  async createNewMember(
+    @Body() body: CreateMemberDto,
+    @Query("memberId") sponsorMemberId?: string,
+  ) {
     try {
       const result = await this.memberService.createMember(
         body,
         body.password,
+        sponsorMemberId,
       );
       return {
         message:
