@@ -224,6 +224,8 @@ export class MemberService {
 
     const academicData = await this.resolveAcademicData(memberData);
     const name = this.resolveMemberName(memberData);
+    const birth_date = this.resolveDateOnly(memberData.birth_date);
+    const admission_date = this.resolveDateOnly(memberData.admission_date);
 
     const normalizedData = {
       name,
@@ -231,8 +233,8 @@ export class MemberService {
       phone: memberData.phone,
       email_personal: memberData.email_personal,
       email_university: memberData.email_university,
-      birth_date: new Date(memberData.birth_date),
-      admission_date: new Date(memberData.admission_date),
+      birth_date,
+      admission_date,
       ra: String(memberData.ra),
 
       city_id: academicData.cityId || memberData.city_id || null,
@@ -324,6 +326,17 @@ export class MemberService {
       value,
     );
   }
+
+private resolveDateOnly(value: string): Date {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new Error("Data de ingresso invalida");
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+
+  return new Date(year, month - 1, day);
+}
+
 
   private resolveMemberName(memberData: CreateMemberDto) {
     const name = memberData.name?.trim();
