@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBody } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { CourseRepository } from '../repositories/CourseRepository';
 import { CreateCourseDto } from '../dto/academic/course.dto';
 import { LinkCourseUniversityDto, CreateProgramSemesterDto, CreateAcademicTermDto, CreateSemesterOfferingDto, CreateEnrollmentDto } from '../dto/academic/course-university.dto';
 import { AppDataBase } from '../db';
+import { AuthorizationGuard } from '../middlewares/authorization.guard';
 
 @Controller('courses')
 @ApiTags('Courses')
@@ -35,6 +36,8 @@ export class CourseController {
   }
 
   @Post()
+  @UseGuards(AuthorizationGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create course' })
   @ApiBody({ type: CreateCourseDto })
   @ApiResponse({ status: 201, description: 'Course created' })
@@ -44,6 +47,8 @@ export class CourseController {
   }
 
   @Post('link-university')
+  @UseGuards(AuthorizationGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Link course to university and city' })
   @ApiBody({ type: LinkCourseUniversityDto })
   @ApiResponse({ status: 201, description: 'Course linked successfully' })
@@ -60,6 +65,8 @@ export class CourseController {
   }
 
   @Post('semesters')
+  @UseGuards(AuthorizationGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create program semester' })
   @ApiBody({ type: CreateProgramSemesterDto })
   @ApiResponse({ status: 201, description: 'Semester created' })
@@ -76,6 +83,8 @@ export class CourseController {
   }
 
   @Post('academic-terms')
+  @UseGuards(AuthorizationGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create academic term' })
   @ApiBody({ type: CreateAcademicTermDto })
   @ApiResponse({ status: 201, description: 'Academic term created' })
@@ -92,6 +101,8 @@ export class CourseController {
   }
 
   @Post('semester-offerings')
+  @UseGuards(AuthorizationGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create semester offering' })
   @ApiBody({ type: CreateSemesterOfferingDto })
   @ApiResponse({ status: 201, description: 'Semester offering created' })
@@ -108,6 +119,8 @@ export class CourseController {
   }
 
   @Post('enrollments')
+  @UseGuards(AuthorizationGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Enroll member in semester' })
   @ApiBody({ type: CreateEnrollmentDto })
   @ApiResponse({ status: 201, description: 'Enrollment created' })

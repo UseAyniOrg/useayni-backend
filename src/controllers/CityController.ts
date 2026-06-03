@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBody } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { CityRepository } from '../repositories/CityRepository';
 import { CreateCityDto } from '../dto/academic/city.dto';
+import { AuthorizationGuard } from '../middlewares/authorization.guard';
 
 @Controller('cities')
 @ApiTags('Cities')
@@ -42,6 +43,8 @@ export class CityController {
   }
 
   @Post()
+  @UseGuards(AuthorizationGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create city' })
   @ApiBody({ type: CreateCityDto })
   @ApiResponse({ status: 201, description: 'City created' })

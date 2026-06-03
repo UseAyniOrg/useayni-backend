@@ -153,7 +153,7 @@ export class CreateMemberDto {
   @IsString()
   position?: string;
 
-  @ApiProperty({ example: 'sponsor-uuid-or-name', required: false })
+  @ApiProperty({ example: 'b314b18f-26d6-4f97-9ed2-1f3942f8b787', required: false })
   @IsOptional()
   @IsString()
   sponsor?: string;

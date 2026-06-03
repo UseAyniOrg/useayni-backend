@@ -1,10 +1,13 @@
-import { Controller, Get, Post, Delete, Body, Param, HttpCode } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
+import { Controller, Get, Post, Delete, Body, Param, HttpCode, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { CarService } from '../services/CarService';
 import { CreateCarDto, AddManagerDto, ManageCitiesDto } from '../dto/car/car.dto';
+import { AuthorizationGuard } from '../middlewares/authorization.guard';
 
 @Controller('cars')
 @ApiTags('CARs')
+@UseGuards(AuthorizationGuard)
+@ApiBearerAuth()
 export class CarController {
   constructor(private readonly carService: CarService) {}
 

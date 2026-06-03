@@ -1,17 +1,45 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { REQUIRE_ACTIVE_KEY } from './requireActive.decorator';
 import { REQUIRE_POSITION_KEY, PositionRequirement } from './requirePosition.decorator';
 import { ROLES_KEY } from './permissionMiddleware';
-import { JWTPayload } from '../helpers/tokenHelper';
+import { decodeToken, JWTPayload } from '../helpers/tokenHelper';
 
 @Injectable()
 export class AuthorizationGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
+  private getUserFromRequest(request: any): JWTPayload {
+    if (request.user) return request.user;
+
+    const authHeader = request.headers?.authorization;
+    if (!authHeader) {
+      throw new UnauthorizedException('Token nao fornecido');
+    }
+
+    const parts = authHeader.split(' ');
+    if (parts.length !== 2 || parts[0] !== 'Bearer') {
+      throw new UnauthorizedException('Formato de token invalido');
+    }
+
+    try {
+      const user = decodeToken(parts[1]);
+      request.user = user;
+      return user;
+    } catch {
+      throw new UnauthorizedException('Token invalido ou expirado');
+    }
+  }
+
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
-    const user: JWTPayload = request.user;
+    const user = this.getUserFromRequest(request);
 
     if (!user) {
       throw new ForbiddenException('Usuário não autenticado');

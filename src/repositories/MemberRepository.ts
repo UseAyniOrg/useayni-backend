@@ -10,6 +10,18 @@ export class MemberRepository {
     return this.repository.find();
   }
 
+  async findSponsorOptions() {
+    return this.repository.find({
+      relations: [
+        "memberCourses",
+        "memberCourses.courseUniversity",
+        "memberCourses.courseUniversity.course",
+        "memberCourses.courseUniversity.university",
+      ],
+      order: { name: "ASC" },
+    });
+  }
+
   async findByRegistrationStatus(status: MemberRegistrationStatus) {
     return this.repository.find({
       where: { registration_status: status },
