@@ -19,6 +19,10 @@ import { MemberCourse } from './models/memberCourse';
 import { Cae } from './models/cae';
 import { CaeManager } from './models/caeManager';
 import { CourseManager } from './models/courseManager';
+import { Miscellaneous } from './models/miscellaneous';
+import { MiscellaneousOwner } from './models/miscellaneousOwner';
+import { MiscellaneousMember } from './models/miscellaneousMember';
+import { MiscellaneousNotification } from './models/miscellaneousNotification';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -55,6 +59,10 @@ const baseConfig = {
     Cae,
     CaeManager,
     CourseManager,
+    Miscellaneous,
+    MiscellaneousOwner,
+    MiscellaneousMember,
+    MiscellaneousNotification,
   ],
   migrations: ['src/migrations/*.ts'],
   migrationsTableName: 'migrations',
