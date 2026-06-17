@@ -67,22 +67,22 @@ export class Miscellaneous {
   status: MiscellaneousStatus;
 
   // Local (opcional)
-  @Column({ length: 9, nullable: true })
+  @Column({ type: 'varchar', length: 9, nullable: true })
   cep?: string | null;
 
-  @Column({ length: 255, nullable: true })
+  @Column({ type: 'varchar', length: 255, nullable: true })
   bairro?: string | null;
 
-  @Column({ length: 255, nullable: true })
+  @Column({ type: 'varchar', length: 255, nullable: true })
   rua?: string | null;
 
-  @Column({ length: 20, nullable: true })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   numero?: string | null;
 
-  @Column({ length: 255, nullable: true })
+  @Column({ type: 'varchar', length: 255, nullable: true })
   cidade?: string | null;
 
-  @Column({ length: 255, nullable: true })
+  @Column({ type: 'varchar', length: 255, nullable: true })
   estado?: string | null;
 
   // Mídia (opcional)

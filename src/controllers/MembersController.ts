@@ -41,6 +41,13 @@ export class MemberController {
     return this.memberService.getAllMembers();
   }
 
+  @Get("sponsors/options")
+  @ApiOperation({ summary: "Listar membros como opções de padrinho" })
+  @ApiResponse({ status: 200, description: "List of sponsor options" })
+  async getSponsorOptions() {
+    return this.memberService.getSponsorOptions();
+  }
+
   @Get("profile/:slug")
   @ApiOperation({ summary: "Get member profile by slug (public)" })
   @ApiParam({

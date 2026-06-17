@@ -33,16 +33,19 @@ export class MiscellaneousRepository {
     });
   }
 
-  /** Listagem pública: apenas miscelâneas ativas e públicas. */
-  async findPublicActive() {
-    return this.repository.find({
+  /** Listagem pública paginada: apenas miscelâneas ativas e públicas. */
+  async findPublicActive(page: number, limit: number) {
+    const [data, total] = await this.repository.findAndCount({
       where: {
         status: MiscellaneousStatus.ATIVA,
         visibility: MiscellaneousVisibility.PUBLICO,
       },
       relations: ['owners'],
       order: { created_at: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
     });
+    return { data, total };
   }
 
   /**

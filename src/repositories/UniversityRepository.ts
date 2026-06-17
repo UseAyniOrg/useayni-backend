@@ -7,11 +7,14 @@ export class UniversityRepository {
   private repository = AppDataBase.getRepository(University);
 
   async findAll() {
-    return this.repository.find({ relations: ["courses"] });
+    return this.repository.find();
   }
 
   async findById(id: string) {
-    return this.repository.findOne({ where: { id }, relations: ["courses"] });
+    return this.repository.findOne({
+      where: { id },
+      relations: ["courseUniversities", "courseUniversities.course"],
+    });
   }
 
   async create(data: Partial<University>) {

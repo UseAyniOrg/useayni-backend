@@ -20,6 +20,34 @@ export class MemberService {
     return this.memberRepository.findAll();
   }
 
+  /** Opções de padrinho: membros com curso/universidade resolvidos. */
+  async getSponsorOptions() {
+    const members = await this.memberRepository.findAllWithCourse();
+    return members.map((member) => {
+      let course;
+      let university;
+      if (member.memberCourses && member.memberCourses.length > 0) {
+        const active = member.memberCourses.find(
+          (mc) => mc.status === "active",
+        );
+        const chosen = active || member.memberCourses[0];
+        const cu = chosen?.courseUniversity;
+        if (cu) {
+          course = cu.course ? { name: cu.course.name } : undefined;
+          university = cu.university ? { name: cu.university.name } : undefined;
+        }
+      }
+      return {
+        id: member.id,
+        name: member.name,
+        slug: member.slug,
+        profile_picture_url: member.profile_picture_url,
+        course,
+        university,
+      };
+    });
+  }
+
   async getMemberById(id: string) {
     const member = await this.memberRepository.findByIdWithRelations(id);
     if (!member) throw new Error("Member not found");

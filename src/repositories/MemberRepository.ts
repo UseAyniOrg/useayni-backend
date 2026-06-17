@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { In } from "typeorm";
 import { AppDataBase } from "../db";
 import { Member } from "../models/member";
 
@@ -10,8 +11,27 @@ export class MemberRepository {
     return this.repository.find();
   }
 
+  /** Lista membros com curso/universidade (para opções de padrinho). */
+  async findAllWithCourse() {
+    return this.repository.find({
+      relations: [
+        "memberCourses",
+        "memberCourses.courseUniversity",
+        "memberCourses.courseUniversity.course",
+        "memberCourses.courseUniversity.university",
+      ],
+      order: { name: "ASC" },
+    });
+  }
+
   async findById(id: string) {
     return this.repository.findOneBy({ id });
+  }
+
+  /** Busca múltiplos membros por ID em uma única consulta. */
+  async findByIds(ids: string[]) {
+    if (ids.length === 0) return [];
+    return this.repository.find({ where: { id: In(ids) } });
   }
 
   async findByEmail(email: string) {

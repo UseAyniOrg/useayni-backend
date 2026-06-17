@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
   UnauthorizedException,
 } from '@nestjs/common';
 import {
@@ -14,6 +15,7 @@ import {
   ApiBody,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -49,10 +51,18 @@ export class MiscellaneousController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Listar miscelâneas públicas ativas' })
-  @ApiResponse({ status: 200, description: 'Lista de miscelâneas' })
-  async findPublicActive() {
-    return this.miscellaneousService.findPublicActive();
+  @ApiOperation({ summary: 'Listar miscelâneas públicas ativas (paginada)' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
+  @ApiResponse({ status: 200, description: 'Lista paginada de miscelâneas' })
+  async findPublicActive(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.miscellaneousService.findPublicActive(
+      page ? Number(page) : undefined,
+      limit ? Number(limit) : undefined,
+    );
   }
 
   @Get(':id')

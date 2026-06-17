@@ -129,11 +129,15 @@ export class MiscellaneousService {
 
   private async assertMembersExist(memberIds: string[]) {
     const uniqueIds = Array.from(new Set(memberIds));
-    for (const id of uniqueIds) {
-      const member = await this.memberRepository.findById(id);
-      if (!member) {
-        throw new BadRequestException(`Membro não encontrado: ${id}`);
-      }
+    if (uniqueIds.length === 0) return;
+
+    const found = await this.memberRepository.findByIds(uniqueIds);
+    const foundIds = new Set(found.map((m) => m.id));
+    const missing = uniqueIds.filter((id) => !foundIds.has(id));
+    if (missing.length > 0) {
+      throw new BadRequestException(
+        `Membro(s) não encontrado(s): ${missing.join(', ')}`,
+      );
     }
   }
 
@@ -217,9 +221,21 @@ export class MiscellaneousService {
     return misc;
   }
 
-  /** Listagem pública: só aparece após status ativa. */
-  async findPublicActive() {
-    return this.miscellaneousRepository.findPublicActive();
+  /** Listagem pública paginada: só aparece após status ativa. */
+  async findPublicActive(page = 1, limit = 20) {
+    const safePage = Math.max(1, Math.floor(page) || 1);
+    const safeLimit = Math.min(100, Math.max(1, Math.floor(limit) || 20));
+    const { data, total } = await this.miscellaneousRepository.findPublicActive(
+      safePage,
+      safeLimit,
+    );
+    return {
+      data,
+      total,
+      page: safePage,
+      limit: safeLimit,
+      totalPages: Math.ceil(total / safeLimit),
+    };
   }
 
   /**

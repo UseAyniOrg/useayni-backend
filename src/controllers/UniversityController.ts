@@ -30,7 +30,11 @@ export class UniversityController {
   @ApiResponse({ status: 200, description: 'List of courses' })
   async getCourses(@Param('id') id: string) {
     const university = await this.universityRepository.findById(id);
-    return university?.courses || [];
+    return (
+      university?.courseUniversities
+        ?.map((cu) => cu.course)
+        .filter(Boolean) ?? []
+    );
   }
 
   @Post()
