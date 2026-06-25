@@ -19,6 +19,16 @@ import { MemberCourse } from './models/memberCourse';
 import { Cae } from './models/cae';
 import { CaeManager } from './models/caeManager';
 import { CourseManager } from './models/courseManager';
+import { Miscellaneous } from './models/miscellaneous';
+import { MiscellaneousOwner } from './models/miscellaneousOwner';
+import { MiscellaneousParticipant } from './models/miscellaneousParticipant';
+import { MiscellaneousWaitlist } from './models/miscellaneousWaitlist';
+import { MiscellaneousRequest } from './models/miscellaneousRequest';
+import { MiscellaneousInvite } from './models/miscellaneousInvite';
+import { MiscellaneousApprovalLog } from './models/miscellaneousApprovalLog';
+import { AttendanceSession, AttendanceRecord, AttendanceToken } from './models/attendance';
+import { Form, FormQuestion, FormOption, FormResponse, FormAnswer } from './models/form';
+import { ExternalProfile } from './models/externalProfile';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -55,6 +65,22 @@ const baseConfig = {
     Cae,
     CaeManager,
     CourseManager,
+    Miscellaneous,
+    MiscellaneousOwner,
+    MiscellaneousParticipant,
+    MiscellaneousWaitlist,
+    MiscellaneousRequest,
+    MiscellaneousInvite,
+    MiscellaneousApprovalLog,
+    AttendanceSession,
+    AttendanceRecord,
+    AttendanceToken,
+    Form,
+    FormQuestion,
+    FormOption,
+    FormResponse,
+    FormAnswer,
+    ExternalProfile,
   ],
   migrations: ['src/migrations/*.ts'],
   migrationsTableName: 'migrations',

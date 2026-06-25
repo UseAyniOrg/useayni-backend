@@ -1,14 +1,20 @@
+import { IsNull } from 'typeorm';
 import { AppDataBase } from '../db';
 import { CourseManager } from '../models/courseManager';
 
 export const CourseManagerRepository = AppDataBase.getRepository(CourseManager).extend({
   async findByMemberId(memberId: string): Promise<CourseManager[]> {
     return this.find({
-      where: { 
+      where: {
         member_id: memberId,
-        end_date: null // apenas dirigentes ativos
+        end_date: IsNull(),
       },
-      relations: ['courseUniversity', 'courseUniversity.course', 'courseUniversity.university', 'courseUniversity.city'],
+      relations: [
+        'courseUniversity',
+        'courseUniversity.course',
+        'courseUniversity.university',
+        'courseUniversity.city',
+      ],
     });
   },
 
@@ -24,7 +30,7 @@ export const CourseManagerRepository = AppDataBase.getRepository(CourseManager).
       where: {
         member_id: memberId,
         course_university_id: courseUniversityId,
-        end_date: null,
+        end_date: IsNull(),
       },
     });
     return count > 0;

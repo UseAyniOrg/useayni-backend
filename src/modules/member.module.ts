@@ -8,6 +8,7 @@ import { CityRepository } from '../repositories/CityRepository';
 import { UniversityRepository } from '../repositories/UniversityRepository';
 import { CourseRepository } from '../repositories/CourseRepository';
 import { CourseUniversityRepository } from '../repositories/CourseUniversityRepository';
+import { RoleRepository } from '../repositories/RoleRepository';
 
 @Module({
   controllers: [MemberController],
@@ -20,6 +21,7 @@ import { CourseUniversityRepository } from '../repositories/CourseUniversityRepo
     UniversityRepository,
     CourseRepository,
     CourseUniversityRepository,
+    RoleRepository,
   ],
   exports: [MemberService],
 })

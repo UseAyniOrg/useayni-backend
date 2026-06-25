@@ -174,6 +174,20 @@ export class MemberController {
     };
   }
 
+  @Get("search")
+  @UseGuards(AuthorizationGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Search members by name or email" })
+  @ApiQuery({ name: "q", type: String, description: "Search query" })
+  @ApiQuery({ name: "limit", type: Number, required: false })
+  @ApiResponse({ status: 200, description: "Members found" })
+  async searchMembers(
+    @Query("q") q: string,
+    @Query("limit") limit?: string,
+  ) {
+    return this.memberService.searchMembers(q ?? '', Number(limit) || 10);
+  }
+
   @Get("/:id")
   @UseGuards(AuthorizationGuard)
   @ApiBearerAuth()
@@ -330,12 +344,14 @@ export class MemberController {
   @UseGuards(AuthorizationGuard)
   @Roles('EQUIPE_TECNICA')
   @ApiOperation({ summary: 'Add role to member (EQUIPE_TECNICA only)' })
+  @ApiBody({ schema: { type: 'object', properties: { roleName: { type: 'string', example: 'EXTERNO' } }, required: ['roleName'] } })
   @ApiResponse({ status: 200, description: 'Role added successfully' })
   async addRoleToMember(
     @Param('memberId') memberId: string,
-    @Body() body: { roleName: 'EXTERNO' | 'EQUIPE_TECNICA' },
+    @Body('roleName') roleName: 'EXTERNO' | 'EQUIPE_TECNICA',
   ) {
-    await this.memberService.addRoleToMember(memberId, body.roleName);
+    if (!roleName) throw new HttpException({ message: 'roleName is required' }, HttpStatus.BAD_REQUEST);
+    await this.memberService.addRoleToMember(memberId, roleName);
     return { message: 'Role adicionada com sucesso. Usuário deve fazer login novamente.' };
   }
 
