@@ -64,6 +64,7 @@ export class AttendanceService {
     private readonly attendanceRepo: AttendanceRepository,
     private readonly miscRepo: MiscellaneousRepository,
     private readonly ownerRepo: MiscellaneousOwnerRepository,
+    private readonly participantRepo: MiscellaneousParticipantRepository,
   ) {}
 
   async createSession(miscId: string, userId: string, dto: CreateAttendanceSessionDto) {
@@ -93,11 +94,19 @@ export class AttendanceService {
     if (!session) throw new NotFoundException('Sessão não encontrada');
     if (session.ends_at < new Date()) throw new BadRequestException('Sessão encerrada');
 
+    const alreadyCheckedIn = await this.attendanceRepo.recordExists(sessionId, userId);
+    if (alreadyCheckedIn) return { token: null, checked_in: true };
+
     const token = crypto.randomBytes(32).toString('hex');
-    return this.attendanceRepo.createToken(sessionId, userId, token, session.ends_at);
+    const record = await this.attendanceRepo.createToken(sessionId, userId, token, session.ends_at);
+    return { token: record!.token, checked_in: false };
   }
 
-  async checkInByQr(sessionId: string, token: string) {
+  async checkInByQr(sessionId: string, token: string, requesterId: string) {
+    const session = await this.attendanceRepo.findSessionById(sessionId);
+    if (!session) throw new NotFoundException('Sessão não encontrada');
+    await this.ensureOwner(session.miscellaneous_id, requesterId);
+
     const tokenRecord = await this.attendanceRepo.findTokenByValue(token);
     if (!tokenRecord) throw new BadRequestException('Token inválido');
     if (tokenRecord.used) throw new BadRequestException('Token já utilizado');
@@ -121,7 +130,17 @@ export class AttendanceService {
   }
 
   async getRecords(sessionId: string) {
-    return this.attendanceRepo.findRecordsBySession(sessionId);
+    const session = await this.attendanceRepo.findSessionById(sessionId);
+    if (!session) throw new NotFoundException('Sessão não encontrada');
+
+    const records = await this.attendanceRepo.findRecordsBySession(sessionId);
+    const participants = await this.participantRepo.findByMiscellaneous(session.miscellaneous_id);
+    const recordMap = new Map(records.map((r) => [r.member_id, r]));
+
+    return participants.map((p) => {
+      const existing = recordMap.get(p.member_id);
+      return existing ?? { id: null, session_id: sessionId, member_id: p.member_id, present: false, checked_in_at: null, member: p.member };
+    });
   }
 
   private async ensureOwner(miscId: string, userId: string) {

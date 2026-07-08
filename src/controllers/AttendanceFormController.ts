@@ -50,9 +50,15 @@ export class AttendanceSessionController {
   }
 
   @Post(':sessionId/check-in')
-  @ApiOperation({ summary: 'Check-in via QR token' })
-  async checkIn(@Param('sessionId') sessionId: string, @Body('token') token: string) {
-    return this.attendanceService.checkInByQr(sessionId, token);
+  @UseGuards(AuthorizationGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Check-in via QR token (owner only)' })
+  async checkIn(
+    @Param('sessionId') sessionId: string,
+    @Body('token') token: string,
+    @Req() req: Request,
+  ) {
+    return this.attendanceService.checkInByQr(sessionId, token, req.user!.id);
   }
 
   @Patch(':sessionId/records/:userId')

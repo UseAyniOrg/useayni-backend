@@ -262,6 +262,7 @@ export class MemberService {
       ...normalizedData,
       password: hashedPassword,
       sponsor: sponsorId,
+      slug: this.generateSlug(name),
     });
 
     if (academicData.courseUniversityId) {
@@ -308,6 +309,18 @@ export class MemberService {
 
     const sponsorMember = await this.memberRepository.findByName(selectedSponsor);
     return sponsorMember?.id || null;
+  }
+
+  private generateSlug(name: string): string {
+    const base = name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-')
+      .slice(0, 60);
+    return `${base}-${Math.random().toString(36).slice(2, 7)}`;
   }
 
   private isUuid(value: string): boolean {
@@ -586,7 +599,7 @@ export class MemberService {
   }
 
   // Gerenciamento de Roles
-  async addRoleToMember(memberId: string, roleName: 'EXTERNO' | 'EQUIPE_TECNICA') {
+  async addRoleToMember(memberId: string, roleName: string) {
     const role = await this.roleRepository.findByName(roleName);
     if (!role) throw new Error(`Role ${roleName} não encontrada`);
 
@@ -594,8 +607,6 @@ export class MemberService {
       'INSERT INTO member_roles (member_id, role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
       [memberId, role.id]
     );
-
-    // Invalidar tokens do usuário
     await this.tokenRepository.deleteByMemberId(memberId);
   }
 

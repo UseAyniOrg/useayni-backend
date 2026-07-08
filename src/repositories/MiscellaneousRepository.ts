@@ -58,7 +58,7 @@ export class MiscellaneousRepository {
       .leftJoin('miscellaneous_participants', 'mp', 'mp.miscellaneous_id = m.id')
       .where('m.deleted_at IS NULL')
       .andWhere(
-        `(m.participation_type = 'public' OR mo.member_id = :uid OR mp.member_id = :uid OR m.created_by = :uid)`,
+        `(m.participation_type = 'public' OR m.scope = 'general' OR mo.member_id = :uid OR mp.member_id = :uid OR m.created_by = :uid)`,
         { uid: userId },
       )
       .groupBy('m.id, creator.id');

@@ -128,15 +128,26 @@ export class MemberController {
     @Req() req: Request,
   ) {
     const user = req.user!;
-    const data = await this.memberService.approveMemberRegistration(
-      id,
-      user.id,
-    );
+    const data = await this.memberService.approveMemberRegistration(id, user.id);
+    return { message: "Cadastro aprovado com sucesso.", data };
+  }
 
-    return {
-      message: "Cadastro aprovado com sucesso.",
-      data,
-    };
+  @Patch(':id/approve-with-edit')
+  @UseGuards(AuthorizationGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Edit member data and approve registration" })
+  @ApiParam({ name: "id", type: String, description: "Member ID" })
+  @ApiBody({ type: UpdateMemberDto })
+  @ApiResponse({ status: 200, description: "Member updated and approved" })
+  async editAndApproveMember(
+    @Param("id") id: string,
+    @Body() updateData: UpdateMemberDto,
+    @Req() req: Request,
+  ) {
+    const user = req.user!;
+    await this.memberService.updateMember(id, updateData);
+    const data = await this.memberService.approveMemberRegistration(id, user.id);
+    return { message: "Cadastro atualizado e aprovado com sucesso.", data };
   }
 
   @Patch(":id/reject")
@@ -344,11 +355,11 @@ export class MemberController {
   @UseGuards(AuthorizationGuard)
   @Roles('EQUIPE_TECNICA')
   @ApiOperation({ summary: 'Add role to member (EQUIPE_TECNICA only)' })
-  @ApiBody({ schema: { type: 'object', properties: { roleName: { type: 'string', example: 'EXTERNO' } }, required: ['roleName'] } })
+  @ApiBody({ schema: { type: 'object', properties: { roleName: { type: 'string', example: 'LIDER' } }, required: ['roleName'] } })
   @ApiResponse({ status: 200, description: 'Role added successfully' })
   async addRoleToMember(
     @Param('memberId') memberId: string,
-    @Body('roleName') roleName: 'EXTERNO' | 'EQUIPE_TECNICA',
+    @Body('roleName') roleName: string,
   ) {
     if (!roleName) throw new HttpException({ message: 'roleName is required' }, HttpStatus.BAD_REQUEST);
     await this.memberService.addRoleToMember(memberId, roleName);

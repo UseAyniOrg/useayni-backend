@@ -318,6 +318,18 @@ export class MiscellaneousService {
     await this.ownerRepo.remove(id, targetMemberId);
   }
 
+  async joinSelf(id: string, memberId: string) {
+    const misc = await this.findById(id);
+    if (misc.status !== MiscellaneousStatus.ACTIVE) {
+      throw new BadRequestException('Esta miscelânea não está ativa para inscrições');
+    }
+    const already = await this.participantRepo.isParticipant(id, memberId);
+    if (already) throw new BadRequestException('Você já está vinculado a esta miscelânea');
+    const isOwner = await this.ownerRepo.findOne(id, memberId);
+    if (isOwner) throw new BadRequestException('Você já é dono desta miscelânea');
+    return this.participantRepo.add(id, memberId);
+  }
+
   async addMember(id: string, targetMemberId: string, requesterId: string) {
     await this.ensureOwner(id, requesterId);
     const already = await this.participantRepo.isParticipant(id, targetMemberId);
@@ -403,9 +415,6 @@ export class MiscellaneousService {
 
   private canAccessMiscellaneous(misc: Miscellaneous, userId: string, member: any): boolean {
     if (misc.created_by === userId) return true;
-    const isPublic = misc.visibility === 'public' || misc.participation_type === 'public';
-    if (!isPublic) return true;
-
     if (!misc.scope_rules?.length) return true;
 
     const contexts = this.buildMemberScopeContexts(member);

@@ -130,8 +130,14 @@ export class MiscellaneousController {
     await this.miscService.removeOwner(id, userId, req.user!.id);
   }
 
+  @Post(':id/join')
+  @ApiOperation({ summary: 'Join miscellaneous (any authenticated member)' })
+  async joinMiscellaneous(@Param('id') id: string, @Req() req: Request) {
+    return this.miscService.joinSelf(id, req.user!.id);
+  }
+
   @Post(':id/members')
-  @ApiOperation({ summary: 'Add member' })
+  @ApiOperation({ summary: 'Add member (owner only)' })
   async addMember(
     @Param('id') id: string,
     @Body() body: { member_id?: string; member_query?: string },

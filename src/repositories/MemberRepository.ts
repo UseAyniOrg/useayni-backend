@@ -7,7 +7,7 @@ export class MemberRepository {
   private repository = AppDataBase.getRepository(Member);
 
   async findAll() {
-    return this.repository.find();
+    return this.repository.find({ relations: ['roles'], order: { name: 'ASC' } });
   }
 
   async findSponsorOptions() {

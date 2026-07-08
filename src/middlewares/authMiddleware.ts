@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from "express";
 import * as jwt from "jsonwebtoken";
 import { authConfig } from "../config/auth";
 import { JWTPayload } from "../helpers/tokenHelper";
+import { AppDataBase } from "../db";
+import { Token } from "../models/token";
 
 export async function authMiddleware(
   req: Request,
@@ -25,9 +27,18 @@ export async function authMiddleware(
 
   try {
     if (!authConfig.jwt.secret) throw new Error("JWT secret is not defined");
-    
+
     const decoded = jwt.verify(token, authConfig.jwt.secret) as JWTPayload;
-    
+
+    const tokenRecord = await AppDataBase.getRepository(Token).findOne({
+      where: { token, type: "access" },
+    });
+
+    if (!tokenRecord) {
+      res.status(401).json({ error: "Sessão encerrada. Faça login novamente." });
+      return;
+    }
+
     req.user = decoded;
     next();
   } catch (error) {
