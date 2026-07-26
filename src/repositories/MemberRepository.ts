@@ -7,7 +7,7 @@ export class MemberRepository {
   private repository = AppDataBase.getRepository(Member);
 
   async findAll() {
-    return this.repository.find();
+    return this.repository.find({ relations: ['roles'], order: { name: 'ASC' } });
   }
 
   async findSponsorOptions() {
@@ -206,6 +206,16 @@ export class MemberRepository {
        ON CONFLICT (member_id, course_university_id) DO NOTHING`,
       [memberId, courseUniversityId, dateStr],
     );
+  }
+
+  async search(query: string, limit: number): Promise<Pick<Member, 'id' | 'name' | 'email_personal' | 'profile_picture_url'>[]> {
+    return this.repository
+      .createQueryBuilder('m')
+      .select(['m.id', 'm.name', 'm.email_personal', 'm.profile_picture_url'])
+      .where('m.name ILIKE :q OR m.email_personal ILIKE :q', { q: `%${query}%` })
+      .orderBy('m.name', 'ASC')
+      .limit(limit)
+      .getMany();
   }
 
   async findByNameSlug(slug: string) {

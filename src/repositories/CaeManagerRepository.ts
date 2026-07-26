@@ -1,12 +1,13 @@
+import { IsNull } from 'typeorm';
 import { AppDataBase } from '../db';
 import { CaeManager } from '../models/caeManager';
 
 export const CaeManagerRepository = AppDataBase.getRepository(CaeManager).extend({
   async findByMemberId(memberId: string): Promise<CaeManager[]> {
     return this.find({
-      where: { 
+      where: {
         member_id: memberId,
-        end_date: null // apenas gestores ativos
+        end_date: IsNull(),
       },
       relations: ['cae', 'cae.state'],
     });
@@ -24,7 +25,7 @@ export const CaeManagerRepository = AppDataBase.getRepository(CaeManager).extend
       where: {
         member_id: memberId,
         cae_id: caeId,
-        end_date: null,
+        end_date: IsNull(),
       },
     });
     return count > 0;
