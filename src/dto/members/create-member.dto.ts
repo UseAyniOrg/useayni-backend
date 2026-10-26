@@ -5,12 +5,30 @@ import {
   IsEmail,
   IsInt,
   IsOptional,
+  IsObject,
   IsString,
   IsUUID,
   Min,
 } from 'class-validator';
 
 export class CreateMemberDto {
+  @IsOptional()
+  @IsString()
+  organization_profile_key?: string;
+
+  @IsOptional()
+  @IsObject()
+  profile_data?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsBoolean()
+  accepted_profile_sharing?: boolean;
+
+  @ApiProperty({ example: { occupation: 'Engenheiro' }, required: false })
+  @IsOptional()
+  @IsObject()
+  custom_fields?: Record<string, string | number | boolean | null>;
+
   @ApiProperty({ example: 'Joao', required: false })
   @IsOptional()
   @IsString()
@@ -26,9 +44,10 @@ export class CreateMemberDto {
   @IsString()
   name?: string;
 
-  @ApiProperty({ example: '12345678900' })
+  @ApiProperty({ example: '12345678900', required: false })
+  @IsOptional()
   @IsString()
-  cpf: string;
+  cpf?: string;
 
   @ApiProperty({ example: 'password123' })
   @IsString()
@@ -39,25 +58,29 @@ export class CreateMemberDto {
   @IsString()
   confirm_password?: string;
 
-  @ApiProperty({ example: '11999999999' })
+  @ApiProperty({ example: '11999999999', required: false })
+  @IsOptional()
   @IsString()
-  phone: string;
+  phone?: string;
 
   @ApiProperty({ example: 'joao@example.com' })
   @IsEmail()
   email_personal: string;
 
-  @ApiProperty({ example: 'joao@university.edu' })
+  @ApiProperty({ example: 'joao@university.edu', required: false })
+  @IsOptional()
   @IsEmail()
-  email_university: string;
+  email_university?: string;
 
-  @ApiProperty({ example: '1234567890' })
+  @ApiProperty({ example: '1234567890', required: false })
+  @IsOptional()
   @IsString()
-  ra: string;
+  ra?: string;
 
-  @ApiProperty({ example: '2000-01-01' })
+  @ApiProperty({ example: '2000-01-01', required: false })
+  @IsOptional()
   @IsDateString()
-  birth_date: string;
+  birth_date?: string;
 
   @ApiProperty({ example: 'uuid-do-estado', required: false })
   @IsOptional()
@@ -144,9 +167,10 @@ export class CreateMemberDto {
   @IsUUID()
   course_university_id?: string;
 
-  @ApiProperty({ example: '2024-01-01' })
+  @ApiProperty({ example: '2024-01-01', required: false })
+  @IsOptional()
   @IsDateString()
-  admission_date: string;
+  admission_date?: string;
 
   @ApiProperty({ example: 'Membro', required: false })
   @IsOptional()

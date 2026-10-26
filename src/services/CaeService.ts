@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { IsNull } from 'typeorm';
 import { CaeRepository } from '../repositories/CaeRepository';
 import { CaeManagerRepository } from '../repositories/CaeManagerRepository';
 
@@ -45,7 +46,7 @@ export class CaeService {
 
   async removeManager(caeId: string, memberId: string) {
     const manager = await CaeManagerRepository.findOne({
-      where: { cae_id: caeId, member_id: memberId, end_date: null },
+      where: { cae_id: caeId, member_id: memberId, end_date: IsNull() },
     });
     if (manager) {
       manager.end_date = new Date();

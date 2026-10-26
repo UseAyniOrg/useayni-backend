@@ -8,6 +8,9 @@ import { CityRepository } from '../repositories/CityRepository';
 import { UniversityRepository } from '../repositories/UniversityRepository';
 import { CourseRepository } from '../repositories/CourseRepository';
 import { CourseUniversityRepository } from '../repositories/CourseUniversityRepository';
+import { RoleRepository } from '../repositories/RoleRepository';
+import { FeatureFlagGuard } from '../middlewares/requireFeature.decorator';
+import { AccountProvisioningService } from '../services/AccountProvisioningService';
 
 @Module({
   controllers: [MemberController],
@@ -20,6 +23,9 @@ import { CourseUniversityRepository } from '../repositories/CourseUniversityRepo
     UniversityRepository,
     CourseRepository,
     CourseUniversityRepository,
+    RoleRepository,
+    FeatureFlagGuard,
+    AccountProvisioningService,
   ],
   exports: [MemberService],
 })

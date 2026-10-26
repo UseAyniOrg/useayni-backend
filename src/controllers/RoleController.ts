@@ -120,8 +120,8 @@ export class RoleController {
   @Post(':id/members')
   @Roles('EQUIPE_TECNICA')
   @ApiOperation({
-    summary: 'Assign role to member  - DEPRECATED',
-    description: 'Use POST /members/:memberId/roles instead',
+    summary: 'Assign role to member',
+    description: 'Assigns a role to a member',
   })
   @ApiParam({ name: 'id', type: String, description: 'Role ID' })
   @ApiBody({ type: AssignRoleToMemberDto })
@@ -135,8 +135,8 @@ export class RoleController {
   @Roles('EQUIPE_TECNICA')
   @HttpCode(200)
   @ApiOperation({
-    summary: 'Remove role from member  - DEPRECATED',
-    description: 'Use DELETE /members/:memberId/roles/:roleName instead',
+    summary: 'Remove role from member',
+    description: 'Removes a role from a member',
   })
   @ApiParam({ name: 'id', type: String, description: 'Role ID' })
   @ApiParam({ name: 'memberId', type: String, description: 'Member ID' })

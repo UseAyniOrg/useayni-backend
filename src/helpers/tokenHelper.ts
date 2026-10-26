@@ -7,13 +7,43 @@ export interface MemberPosition {
   name: string;
 }
 
+export interface MemberMandate {
+  mandate_id: string;
+  position: string;
+  position_id: string;
+  org_unit_id: string;
+  org_unit_name: string;
+  org_unit_type: string;
+}
+
+export interface OrganizationMembership {
+  member_id: string;
+  organization_id: string;
+  organization_name: string;
+  tenant_slug: string;
+  status: string;
+  organization_status?: string;
+}
+
 export interface JWTPayload {
+  access_context?: 'platform' | 'organization' | 'member' | 'support';
+  community_only?: boolean;
   id: string;
   email: string;
   name: string;
   isActive: boolean;
   roles: string[];
+  /** Legacy CreaJr positions — kept for backward compat */
   positions: MemberPosition[];
+  /** Multi-tenant mandate-based positions */
+  mandates?: MemberMandate[];
+  /** Tenant context — present when logged in within an org */
+  organization_id?: string;
+  tenant_slug?: string;
+  account_id?: string;
+  password_change_required?: boolean;
+  support_session_id?: string;
+  organization_memberships?: OrganizationMembership[];
 }
 
 /**

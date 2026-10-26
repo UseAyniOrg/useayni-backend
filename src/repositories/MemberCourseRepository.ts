@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { AppDataBase } from "../db";
-import { MemberCourse } from "../models/memberCourse";
+import { AppDataBase } from '../db';
+import { MemberCourse } from '../models/memberCourse';
 
 @Injectable()
 export class MemberCourseRepository {
@@ -9,24 +9,29 @@ export class MemberCourseRepository {
   async findByMemberId(memberId: string) {
     return this.repository.find({
       where: { member_id: memberId },
-      relations: ["courseUniversity", "courseUniversity.course", "courseUniversity.university", "courseUniversity.city"]
+      relations: [
+        'courseUniversity',
+        'courseUniversity.course',
+        'courseUniversity.university',
+        'courseUniversity.city',
+      ],
     });
   }
 
   async findByMemberAndCourseUniversity(memberId: string, courseUniversityId: string) {
     return this.repository.findOne({
       where: { member_id: memberId, course_university_id: courseUniversityId },
-      relations: ["courseUniversity", "courseUniversity.course", "courseUniversity.university"]
+      relations: ['courseUniversity', 'courseUniversity.course', 'courseUniversity.university'],
     });
   }
 
   async findActiveByCourseUniversity(courseUniversityId: string) {
     return this.repository.find({
-      where: { 
+      where: {
         course_university_id: courseUniversityId,
-        status: 'active'
+        status: 'active' as any,
       },
-      relations: ["member"]
+      relations: ['member'],
     });
   }
 
@@ -37,16 +42,21 @@ export class MemberCourseRepository {
 
   async update(id: string, data: Partial<MemberCourse>) {
     await this.repository.update(id, data);
-    return this.repository.findOne({ 
+    return this.repository.findOne({
       where: { id },
-      relations: ["courseUniversity", "courseUniversity.course", "courseUniversity.university"]
+      relations: ['courseUniversity', 'courseUniversity.course', 'courseUniversity.university'],
     });
   }
 
   async findById(id: string) {
     return this.repository.findOne({
       where: { id },
-      relations: ["courseUniversity", "courseUniversity.course", "courseUniversity.university", "member"]
+      relations: [
+        'courseUniversity',
+        'courseUniversity.course',
+        'courseUniversity.university',
+        'member',
+      ],
     });
   }
 }

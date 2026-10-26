@@ -401,39 +401,6 @@ CREATE TABLE public.members_skills (
 
 
 --
--- Name: migrations; Type: TABLE; Schema: public; Owner: neondb_owner
---
-
-CREATE TABLE public.migrations (
-    id integer NOT NULL,
-    "timestamp" bigint NOT NULL,
-    name character varying NOT NULL
-);
-
-
-
---
--- Name: migrations_id_seq; Type: SEQUENCE; Schema: public; Owner: neondb_owner
---
-
-CREATE SEQUENCE public.migrations_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-
---
--- Name: migrations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: neondb_owner
---
-
-ALTER SEQUENCE public.migrations_id_seq OWNED BY public.migrations.id;
-
-
---
 -- Name: permissions; Type: TABLE; Schema: public; Owner: neondb_owner
 --
 
@@ -632,13 +599,6 @@ CREATE TABLE public.universities (
 
 
 --
--- Name: migrations id; Type: DEFAULT; Schema: public; Owner: neondb_owner
---
-
-ALTER TABLE ONLY public.migrations ALTER COLUMN id SET DEFAULT nextval('public.migrations_id_seq'::regclass);
-
-
---
 -- Name: states PK_09ab30ca0975c02656483265f4f; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
@@ -660,14 +620,6 @@ ALTER TABLE ONLY public.courses
 
 ALTER TABLE ONLY public.cities
     ADD CONSTRAINT "PK_4762ffb6e5d198cfec5606bc11e" PRIMARY KEY (id);
-
-
---
--- Name: migrations PK_8c82d7f526340ab734260ea46be; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
---
-
-ALTER TABLE ONLY public.migrations
-    ADD CONSTRAINT "PK_8c82d7f526340ab734260ea46be" PRIMARY KEY (id);
 
 
 --
@@ -1357,20 +1309,6 @@ ALTER TABLE ONLY public.task_responsibles
 
 ALTER TABLE ONLY public.task_responsibles
     ADD CONSTRAINT task_responsibles_task_id_fkey FOREIGN KEY (task_id) REFERENCES public.project_tasks(id) ON DELETE CASCADE;
-
-
---
--- Name: DEFAULT PRIVILEGES FOR SEQUENCES; Type: DEFAULT ACL; Schema: public; Owner: cloud_admin
---
-
-ALTER DEFAULT PRIVILEGES FOR ROLE cloud_admin IN SCHEMA public GRANT ALL ON SEQUENCES TO neon_superuser WITH GRANT OPTION;
-
-
---
--- Name: DEFAULT PRIVILEGES FOR TABLES; Type: DEFAULT ACL; Schema: public; Owner: cloud_admin
---
-
-ALTER DEFAULT PRIVILEGES FOR ROLE cloud_admin IN SCHEMA public GRANT ALL ON TABLES TO neon_superuser WITH GRANT OPTION;
 
 
 --

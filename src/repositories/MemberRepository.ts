@@ -6,12 +6,17 @@ import { Member, MemberRegistrationStatus } from "../models/member";
 export class MemberRepository {
   private repository = AppDataBase.getRepository(Member);
 
-  async findAll() {
-    return this.repository.find();
+  async findAll(organization_id: string) {
+    return this.repository.find({
+      where: { organization_id },
+      relations: ['roles'],
+      order: { name: 'ASC' },
+    });
   }
 
-  async findSponsorOptions() {
+  async findSponsorOptions(organization_id: string) {
     return this.repository.find({
+      where: { organization_id },
       relations: [
         "memberCourses",
         "memberCourses.courseUniversity",
@@ -22,9 +27,9 @@ export class MemberRepository {
     });
   }
 
-  async findByRegistrationStatus(status: MemberRegistrationStatus) {
+  async findByRegistrationStatus(status: MemberRegistrationStatus, organization_id: string) {
     return this.repository.find({
-      where: { registration_status: status },
+      where: { organization_id, registration_status: status },
       relations: [
         "city",
         "city.state",
@@ -39,12 +44,16 @@ export class MemberRepository {
     });
   }
 
-  async findById(id: string) {
-    return this.repository.findOneBy({ id });
+  async findById(id: string, organization_id?: string) {
+    return this.repository.findOne({
+      where: organization_id ? { id, organization_id } : { id },
+    });
   }
 
-  async findByEmail(email: string) {
-    return this.repository.findOneBy({ email_personal: email });
+  async findByEmail(email: string, organization_id: string) {
+    return this.repository.findOne({
+      where: { email_personal: email, organization_id },
+    });
   }
 
   async findByEmailWithPassword(email: string) {
@@ -56,23 +65,41 @@ export class MemberRepository {
       .getOne();
   }
 
-  async findBySponsor(sponsorId: string) {
-    return this.repository.findBy({ sponsor: sponsorId });
+  async findBySponsor(sponsorId: string, organization_id: string) {
+    return this.repository.findBy({ sponsor: sponsorId, organization_id });
   }
 
   async findByName(name: string) {
     return this.repository.findOne({ where: { name } });
   }
 
-  async existsByEmailOrCpfOrRa(email_personal: string, email_university: string, cpf: string, ra: string) {
-    return this.repository.findOne({
-      where: [
-        { email_personal },
-        { email_university },
-        { cpf },
-        { ra },
-      ],
-    });
+  async existsByEmailOrCpfOrRa(
+    organization_id: string,
+    email_personal: string,
+    email_university?: string,
+    cpf?: string,
+    ra?: string,
+  ) {
+    const conditions = ['lower(member.email_personal) = lower(:email_personal)'];
+    const parameters: Record<string, string> = { organization_id, email_personal };
+    if (email_university) {
+      conditions.push('lower(member.email_university) = lower(:email_university)');
+      parameters.email_university = email_university;
+    }
+    if (cpf) {
+      conditions.push('member.cpf = :cpf');
+      parameters.cpf = cpf;
+    }
+    if (ra) {
+      conditions.push('member.ra = :ra');
+      parameters.ra = ra;
+    }
+    return this.repository
+      .createQueryBuilder('member')
+      .where('member.organization_id = :organization_id')
+      .andWhere(`(${conditions.join(' OR ')})`)
+      .setParameters(parameters)
+      .getOne();
   }
 
   async create(memberData: Partial<Member>) {
@@ -114,9 +141,9 @@ export class MemberRepository {
     });
   }
 
-  async findByIdWithRelations(id: string) {
+  async findByIdWithRelations(id: string, organization_id?: string) {
     return this.repository.findOne({
-      where: { id },
+      where: organization_id ? { id, organization_id } : { id },
       relations: [
         "city",
         "roles",
@@ -136,10 +163,6 @@ export class MemberRepository {
       relations: [
         "roles",
         "memberCourses",
-        "memberCourses.courseUniversity",
-        "memberCourses.courseUniversity.course",
-        "memberCourses.courseUniversity.university",
-        "memberCourses.courseUniversity.city",
       ],
     });
 
@@ -208,9 +231,24 @@ export class MemberRepository {
     );
   }
 
-  async findByNameSlug(slug: string) {
+  async search(
+    query: string,
+    limit: number,
+    organization_id: string,
+  ): Promise<Pick<Member, 'id' | 'name' | 'email_personal' | 'profile_picture_url'>[]> {
+    return this.repository
+      .createQueryBuilder('m')
+      .select(['m.id', 'm.name', 'm.email_personal', 'm.profile_picture_url'])
+      .where('m.organization_id = :organization_id', { organization_id })
+      .andWhere('(m.name ILIKE :q OR m.email_personal ILIKE :q)', { q: `%${query}%` })
+      .orderBy('m.name', 'ASC')
+      .limit(limit)
+      .getMany();
+  }
+
+  async findByNameSlug(slug: string, organization_id: string) {
     return this.repository.findOne({
-      where: { slug: slug },
+      where: { slug, organization_id },
       relations: [
         "city",
         "roles",
