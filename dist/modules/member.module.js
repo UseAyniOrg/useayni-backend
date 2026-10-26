@@ -18,6 +18,8 @@ const UniversityRepository_1 = require("../repositories/UniversityRepository");
 const CourseRepository_1 = require("../repositories/CourseRepository");
 const CourseUniversityRepository_1 = require("../repositories/CourseUniversityRepository");
 const RoleRepository_1 = require("../repositories/RoleRepository");
+const requireFeature_decorator_1 = require("../middlewares/requireFeature.decorator");
+const AccountProvisioningService_1 = require("../services/AccountProvisioningService");
 let MemberModule = class MemberModule {
 };
 exports.MemberModule = MemberModule;
@@ -34,6 +36,8 @@ exports.MemberModule = MemberModule = __decorate([
             CourseRepository_1.CourseRepository,
             CourseUniversityRepository_1.CourseUniversityRepository,
             RoleRepository_1.RoleRepository,
+            requireFeature_decorator_1.FeatureFlagGuard,
+            AccountProvisioningService_1.AccountProvisioningService,
         ],
         exports: [MemberService_1.MemberService],
     })

@@ -145,6 +145,22 @@ __decorate([
     __metadata("design:type", String)
 ], Miscellaneous.prototype, "banner_url", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'uuid', nullable: true }),
+    __metadata("design:type", Object)
+], Miscellaneous.prototype, "cover_asset_id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'uuid', nullable: true }),
+    __metadata("design:type", Object)
+], Miscellaneous.prototype, "banner_asset_id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'uuid', nullable: true }),
+    __metadata("design:type", Object)
+], Miscellaneous.prototype, "map_asset_id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'jsonb', default: [] }),
+    __metadata("design:type", Array)
+], Miscellaneous.prototype, "sponsor_asset_ids", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 255, nullable: true, unique: true }),
     __metadata("design:type", String)
 ], Miscellaneous.prototype, "public_slug", void 0);
@@ -205,6 +221,10 @@ __decorate([
     __metadata("design:type", Number)
 ], Miscellaneous.prototype, "max_members", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'jsonb', default: [] }),
+    __metadata("design:type", Array)
+], Miscellaneous.prototype, "external_registration_schema", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'boolean', default: false }),
     __metadata("design:type", Boolean)
 ], Miscellaneous.prototype, "waitlist_enabled", void 0);
@@ -238,6 +258,10 @@ __decorate([
     (0, typeorm_1.CreateDateColumn)({ type: 'timestamptz' }),
     __metadata("design:type", Date)
 ], Miscellaneous.prototype, "created_at", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'uuid', nullable: true }),
+    __metadata("design:type", Object)
+], Miscellaneous.prototype, "organization_id", void 0);
 __decorate([
     (0, typeorm_1.UpdateDateColumn)({ type: 'timestamptz' }),
     __metadata("design:type", Date)

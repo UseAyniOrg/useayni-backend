@@ -9,6 +9,8 @@ import {
   AttendanceSessionController,
   FormController,
   PublicController,
+  ExternalProfileController,
+  EventParticipationController,
 } from '../controllers/AttendanceFormController';
 import { MiscellaneousService } from '../services/MiscellaneousService';
 import { MiscellaneousAccessService } from '../services/MiscellaneousAccessService';
@@ -28,9 +30,17 @@ import {
 } from '../repositories/MiscellaneousSubRepositories';
 import { AttendanceRepository, FormRepository } from '../repositories/AttendanceFormRepositories';
 import { MemberRepository } from '../repositories/MemberRepository';
+import { FeatureFlagGuard } from '../middlewares/requireFeature.decorator';
+import { ExternalEventRegistrationService } from '../services/ExternalEventRegistrationService';
+import { MediaAssetService } from '../services/MediaAssetService';
+import { CommunitySessionGuard } from '../middlewares/communitySession.guard';
+import { ExternalProfileTypesController, PlatformExternalProfileTypesController } from '../controllers/ExternalProfileTypesController';
+import { ExternalProfileTypesService } from '../services/ExternalProfileTypesService';
 
 @Module({
   controllers: [
+    ExternalProfileTypesController,
+    PlatformExternalProfileTypesController,
     MiscellaneousController,
     ApprovalController,
     MyInvitesController,
@@ -38,8 +48,11 @@ import { MemberRepository } from '../repositories/MemberRepository';
     AttendanceSessionController,
     FormController,
     PublicController,
+    ExternalProfileController,
+    EventParticipationController,
   ],
   providers: [
+    ExternalProfileTypesService,
     MiscellaneousService,
     MiscellaneousAccessService,
     MiscellaneousWaitlistService,
@@ -55,6 +68,10 @@ import { MemberRepository } from '../repositories/MemberRepository';
     AttendanceRepository,
     FormRepository,
     MemberRepository,
+    FeatureFlagGuard,
+    CommunitySessionGuard,
+    ExternalEventRegistrationService,
+    MediaAssetService,
   ],
   exports: [MiscellaneousService],
 })

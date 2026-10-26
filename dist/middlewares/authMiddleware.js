@@ -36,6 +36,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.authMiddleware = authMiddleware;
 const jwt = __importStar(require("jsonwebtoken"));
 const auth_1 = require("../config/auth");
+const db_1 = require("../db");
+const token_1 = require("../models/token");
 async function authMiddleware(req, res, next) {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
@@ -52,6 +54,13 @@ async function authMiddleware(req, res, next) {
         if (!auth_1.authConfig.jwt.secret)
             throw new Error("JWT secret is not defined");
         const decoded = jwt.verify(token, auth_1.authConfig.jwt.secret);
+        const tokenRecord = await db_1.AppDataBase.getRepository(token_1.Token).findOne({
+            where: { token, type: "access" },
+        });
+        if (!tokenRecord) {
+            res.status(401).json({ error: "Sessão encerrada. Faça login novamente." });
+            return;
+        }
         req.user = decoded;
         next();
     }

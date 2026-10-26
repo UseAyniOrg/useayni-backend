@@ -46,6 +46,7 @@ export class MiscellaneousRepository {
   async findWithFilters(
     filters: MiscellaneousFiltersDto,
     userId: string,
+    canManageOrganization = false,
   ): Promise<{ data: Miscellaneous[]; total: number }> {
     const page = filters.page ?? 1;
     const limit = filters.limit ?? 20;
@@ -56,12 +57,19 @@ export class MiscellaneousRepository {
       .leftJoinAndSelect('m.creator', 'creator')
       .leftJoin('miscellaneous_owners', 'mo', 'mo.miscellaneous_id = m.id')
       .leftJoin('miscellaneous_participants', 'mp', 'mp.miscellaneous_id = m.id')
-      .where('m.deleted_at IS NULL')
-      .andWhere(
+      .where('m.deleted_at IS NULL');
+    if (!canManageOrganization) query = query.andWhere(
         `(m.participation_type = 'public' OR m.scope = 'general' OR mo.member_id = :uid OR mp.member_id = :uid OR m.created_by = :uid)`,
         { uid: userId },
-      )
-      .groupBy('m.id, creator.id');
+      );
+    query = query.groupBy('m.id, creator.id');
+
+    // ─── Multi-tenant: scope to organization when provided ────────────────
+    if ((filters as any).organization_id) {
+      query = query.andWhere('m.organization_id = :orgId', {
+        orgId: (filters as any).organization_id,
+      });
+    }
 
     if (filters.type) query = query.andWhere('m.type = :type', { type: filters.type });
     if (filters.status) query = query.andWhere('m.status = :status', { status: filters.status });

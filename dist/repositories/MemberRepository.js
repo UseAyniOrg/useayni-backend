@@ -14,11 +14,16 @@ let MemberRepository = class MemberRepository {
     constructor() {
         this.repository = db_1.AppDataBase.getRepository(member_1.Member);
     }
-    async findAll() {
-        return this.repository.find();
-    }
-    async findSponsorOptions() {
+    async findAll(organization_id) {
         return this.repository.find({
+            where: { organization_id },
+            relations: ['roles'],
+            order: { name: 'ASC' },
+        });
+    }
+    async findSponsorOptions(organization_id) {
+        return this.repository.find({
+            where: { organization_id },
             relations: [
                 "memberCourses",
                 "memberCourses.courseUniversity",
@@ -28,9 +33,9 @@ let MemberRepository = class MemberRepository {
             order: { name: "ASC" },
         });
     }
-    async findByRegistrationStatus(status) {
+    async findByRegistrationStatus(status, organization_id) {
         return this.repository.find({
-            where: { registration_status: status },
+            where: { organization_id, registration_status: status },
             relations: [
                 "city",
                 "city.state",
@@ -44,11 +49,15 @@ let MemberRepository = class MemberRepository {
             order: { admission_date: "DESC" },
         });
     }
-    async findById(id) {
-        return this.repository.findOneBy({ id });
+    async findById(id, organization_id) {
+        return this.repository.findOne({
+            where: organization_id ? { id, organization_id } : { id },
+        });
     }
-    async findByEmail(email) {
-        return this.repository.findOneBy({ email_personal: email });
+    async findByEmail(email, organization_id) {
+        return this.repository.findOne({
+            where: { email_personal: email, organization_id },
+        });
     }
     async findByEmailWithPassword(email) {
         return this.repository
@@ -58,21 +67,33 @@ let MemberRepository = class MemberRepository {
             .where('member.email_personal = :email', { email })
             .getOne();
     }
-    async findBySponsor(sponsorId) {
-        return this.repository.findBy({ sponsor: sponsorId });
+    async findBySponsor(sponsorId, organization_id) {
+        return this.repository.findBy({ sponsor: sponsorId, organization_id });
     }
     async findByName(name) {
         return this.repository.findOne({ where: { name } });
     }
-    async existsByEmailOrCpfOrRa(email_personal, email_university, cpf, ra) {
-        return this.repository.findOne({
-            where: [
-                { email_personal },
-                { email_university },
-                { cpf },
-                { ra },
-            ],
-        });
+    async existsByEmailOrCpfOrRa(organization_id, email_personal, email_university, cpf, ra) {
+        const conditions = ['lower(member.email_personal) = lower(:email_personal)'];
+        const parameters = { organization_id, email_personal };
+        if (email_university) {
+            conditions.push('lower(member.email_university) = lower(:email_university)');
+            parameters.email_university = email_university;
+        }
+        if (cpf) {
+            conditions.push('member.cpf = :cpf');
+            parameters.cpf = cpf;
+        }
+        if (ra) {
+            conditions.push('member.ra = :ra');
+            parameters.ra = ra;
+        }
+        return this.repository
+            .createQueryBuilder('member')
+            .where('member.organization_id = :organization_id')
+            .andWhere(`(${conditions.join(' OR ')})`)
+            .setParameters(parameters)
+            .getOne();
     }
     async create(memberData) {
         const member = this.repository.create(memberData);
@@ -102,9 +123,9 @@ let MemberRepository = class MemberRepository {
             relations: ["roles", "roles.permissions"],
         });
     }
-    async findByIdWithRelations(id) {
+    async findByIdWithRelations(id, organization_id) {
         return this.repository.findOne({
-            where: { id },
+            where: organization_id ? { id, organization_id } : { id },
             relations: [
                 "city",
                 "roles",
@@ -123,10 +144,6 @@ let MemberRepository = class MemberRepository {
             relations: [
                 "roles",
                 "memberCourses",
-                "memberCourses.courseUniversity",
-                "memberCourses.courseUniversity.course",
-                "memberCourses.courseUniversity.university",
-                "memberCourses.courseUniversity.city",
             ],
         });
         if (!member)
@@ -171,18 +188,19 @@ let MemberRepository = class MemberRepository {
        VALUES ($1, $2, 'active', $3)
        ON CONFLICT (member_id, course_university_id) DO NOTHING`, [memberId, courseUniversityId, dateStr]);
     }
-    async search(query, limit) {
+    async search(query, limit, organization_id) {
         return this.repository
             .createQueryBuilder('m')
             .select(['m.id', 'm.name', 'm.email_personal', 'm.profile_picture_url'])
-            .where('m.name ILIKE :q OR m.email_personal ILIKE :q', { q: `%${query}%` })
+            .where('m.organization_id = :organization_id', { organization_id })
+            .andWhere('(m.name ILIKE :q OR m.email_personal ILIKE :q)', { q: `%${query}%` })
             .orderBy('m.name', 'ASC')
             .limit(limit)
             .getMany();
     }
-    async findByNameSlug(slug) {
+    async findByNameSlug(slug, organization_id) {
         return this.repository.findOne({
-            where: { slug: slug },
+            where: { slug, organization_id },
             relations: [
                 "city",
                 "roles",

@@ -1,11 +1,11 @@
 export class MemberProfileDto {
   id: string;
   name: string;
-  phone: string;
-  ra: string;
+  phone: string | null;
+  ra: string | null;
   profile_picture_url?: string;
-  birth_date: Date;
-  admission_date: Date;
+  birth_date: Date | null;
+  admission_date: Date | null;
   biography?: string;
   banner_url?: string;
   curriculum_url?: string;

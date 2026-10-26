@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MiscellaneousFiltersDto = exports.UpdateMiscellaneousDto = exports.CreateMiscellaneousDto = exports.ScopeRuleDto = void 0;
+exports.MiscellaneousFiltersDto = exports.UpdateMiscellaneousDto = exports.CreateMiscellaneousDto = exports.ExternalRegistrationFieldDto = exports.ScopeRuleDto = void 0;
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
 const swagger_1 = require("@nestjs/swagger");
@@ -18,9 +18,14 @@ class ScopeRuleDto {
 }
 exports.ScopeRuleDto = ScopeRuleDto;
 __decorate([
-    (0, class_validator_1.IsIn)(['general', 'cae', 'car', 'city', 'university', 'course', 'semester']),
+    (0, class_validator_1.IsIn)(['general', 'org_unit', 'cae', 'car', 'city', 'university', 'course', 'semester']),
     __metadata("design:type", String)
 ], ScopeRuleDto.prototype, "type", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], ScopeRuleDto.prototype, "org_unit_id", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsUUID)(),
@@ -51,6 +56,34 @@ __decorate([
     (0, class_validator_1.IsInt)(),
     __metadata("design:type", Number)
 ], ScopeRuleDto.prototype, "semester", void 0);
+class ExternalRegistrationFieldDto {
+}
+exports.ExternalRegistrationFieldDto = ExternalRegistrationFieldDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(64),
+    __metadata("design:type", String)
+], ExternalRegistrationFieldDto.prototype, "key", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(120),
+    __metadata("design:type", String)
+], ExternalRegistrationFieldDto.prototype, "label", void 0);
+__decorate([
+    (0, class_validator_1.IsIn)(['text', 'email', 'number', 'date', 'select', 'checkbox']),
+    __metadata("design:type", String)
+], ExternalRegistrationFieldDto.prototype, "type", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], ExternalRegistrationFieldDto.prototype, "required", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    __metadata("design:type", Array)
+], ExternalRegistrationFieldDto.prototype, "options", void 0);
 class CreateMiscellaneousDto {
 }
 exports.CreateMiscellaneousDto = CreateMiscellaneousDto;
@@ -160,6 +193,31 @@ __decorate([
 __decorate([
     (0, swagger_1.ApiPropertyOptional)(),
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], CreateMiscellaneousDto.prototype, "cover_asset_id", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], CreateMiscellaneousDto.prototype, "banner_asset_id", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], CreateMiscellaneousDto.prototype, "map_asset_id", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ type: [String] }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsUUID)(undefined, { each: true }),
+    __metadata("design:type", Array)
+], CreateMiscellaneousDto.prototype, "sponsor_asset_ids", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateMiscellaneousDto.prototype, "stream_link", void 0);
@@ -244,6 +302,14 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateMiscellaneousDto.prototype, "waitlist_message", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ type: [ExternalRegistrationFieldDto] }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => ExternalRegistrationFieldDto),
+    __metadata("design:type", Array)
+], CreateMiscellaneousDto.prototype, "external_registration_schema", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({ type: [String] }),
     (0, class_validator_1.IsOptional)(),
@@ -354,6 +420,31 @@ __decorate([
 __decorate([
     (0, swagger_1.ApiPropertyOptional)(),
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", Object)
+], UpdateMiscellaneousDto.prototype, "cover_asset_id", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", Object)
+], UpdateMiscellaneousDto.prototype, "banner_asset_id", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", Object)
+], UpdateMiscellaneousDto.prototype, "map_asset_id", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ type: [String] }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsUUID)('4', { each: true }),
+    __metadata("design:type", Array)
+], UpdateMiscellaneousDto.prototype, "sponsor_asset_ids", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpdateMiscellaneousDto.prototype, "stream_link", void 0);
@@ -439,6 +530,14 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpdateMiscellaneousDto.prototype, "waitlist_message", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ type: [ExternalRegistrationFieldDto] }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => ExternalRegistrationFieldDto),
+    __metadata("design:type", Array)
+], UpdateMiscellaneousDto.prototype, "external_registration_schema", void 0);
 class MiscellaneousFiltersDto {
 }
 exports.MiscellaneousFiltersDto = MiscellaneousFiltersDto;

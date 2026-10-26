@@ -13,7 +13,8 @@ import { Member } from './member';
 
 /** One rule in the scope_rules array (OR-combined) */
 export interface ScopeRule {
-  type: 'general' | 'cae' | 'car' | 'city' | 'university' | 'course' | 'semester';
+  type: 'general' | 'org_unit' | 'cae' | 'car' | 'city' | 'university' | 'course' | 'semester';
+  org_unit_id?: string;
   cae_id?: string;
   car_id?: string;
   city_id?: string;
@@ -143,6 +144,18 @@ export class Miscellaneous {
   @Column({ type: 'text', nullable: true })
   banner_url?: string;
 
+  @Column({ type: 'uuid', nullable: true })
+  cover_asset_id?: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  banner_asset_id?: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  map_asset_id?: string | null;
+
+  @Column({ type: 'jsonb', default: [] })
+  sponsor_asset_ids!: string[];
+
   // Public access
   @Column({ type: 'varchar', length: 255, nullable: true, unique: true })
   public_slug?: string;
@@ -194,6 +207,15 @@ export class Miscellaneous {
   @Column({ type: 'int', nullable: true })
   max_members?: number;
 
+  @Column({ type: 'jsonb', default: [] })
+  external_registration_schema!: {
+    key: string;
+    label: string;
+    type: 'text' | 'email' | 'number' | 'date' | 'select' | 'checkbox';
+    required?: boolean;
+    options?: string[];
+  }[];
+
   @Column({ type: 'boolean', default: false })
   waitlist_enabled!: boolean;
 
@@ -221,6 +243,9 @@ export class Miscellaneous {
 
   @CreateDateColumn({ type: 'timestamptz' })
   created_at!: Date;
+
+  @Column({ type: 'uuid', nullable: true })
+  organization_id?: string | null;
 
   @UpdateDateColumn({ type: 'timestamptz' })
   updated_at!: Date;

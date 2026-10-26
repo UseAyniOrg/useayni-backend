@@ -18,12 +18,20 @@ const MiscellaneousRepository_1 = require("../repositories/MiscellaneousReposito
 const MiscellaneousSubRepositories_1 = require("../repositories/MiscellaneousSubRepositories");
 const AttendanceFormRepositories_1 = require("../repositories/AttendanceFormRepositories");
 const MemberRepository_1 = require("../repositories/MemberRepository");
+const requireFeature_decorator_1 = require("../middlewares/requireFeature.decorator");
+const ExternalEventRegistrationService_1 = require("../services/ExternalEventRegistrationService");
+const MediaAssetService_1 = require("../services/MediaAssetService");
+const communitySession_guard_1 = require("../middlewares/communitySession.guard");
+const ExternalProfileTypesController_1 = require("../controllers/ExternalProfileTypesController");
+const ExternalProfileTypesService_1 = require("../services/ExternalProfileTypesService");
 let MiscellaneousModule = class MiscellaneousModule {
 };
 exports.MiscellaneousModule = MiscellaneousModule;
 exports.MiscellaneousModule = MiscellaneousModule = __decorate([
     (0, common_1.Module)({
         controllers: [
+            ExternalProfileTypesController_1.ExternalProfileTypesController,
+            ExternalProfileTypesController_1.PlatformExternalProfileTypesController,
             MiscellaneousController_1.MiscellaneousController,
             MiscellaneousController_1.ApprovalController,
             MiscellaneousController_1.MyInvitesController,
@@ -31,8 +39,11 @@ exports.MiscellaneousModule = MiscellaneousModule = __decorate([
             AttendanceFormController_1.AttendanceSessionController,
             AttendanceFormController_1.FormController,
             AttendanceFormController_1.PublicController,
+            AttendanceFormController_1.ExternalProfileController,
+            AttendanceFormController_1.EventParticipationController,
         ],
         providers: [
+            ExternalProfileTypesService_1.ExternalProfileTypesService,
             MiscellaneousService_1.MiscellaneousService,
             MiscellaneousAccessService_1.MiscellaneousAccessService,
             MiscellaneousWaitlistAttendanceService_1.MiscellaneousWaitlistService,
@@ -48,6 +59,10 @@ exports.MiscellaneousModule = MiscellaneousModule = __decorate([
             AttendanceFormRepositories_1.AttendanceRepository,
             AttendanceFormRepositories_1.FormRepository,
             MemberRepository_1.MemberRepository,
+            requireFeature_decorator_1.FeatureFlagGuard,
+            communitySession_guard_1.CommunitySessionGuard,
+            ExternalEventRegistrationService_1.ExternalEventRegistrationService,
+            MediaAssetService_1.MediaAssetService,
         ],
         exports: [MiscellaneousService_1.MiscellaneousService],
     })

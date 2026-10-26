@@ -16,6 +16,27 @@ class CreateMemberDto {
 }
 exports.CreateMemberDto = CreateMemberDto;
 __decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateMemberDto.prototype, "organization_profile_key", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsObject)(),
+    __metadata("design:type", Object)
+], CreateMemberDto.prototype, "profile_data", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], CreateMemberDto.prototype, "accepted_profile_sharing", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: { occupation: 'Engenheiro' }, required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsObject)(),
+    __metadata("design:type", Object)
+], CreateMemberDto.prototype, "custom_fields", void 0);
+__decorate([
     (0, swagger_1.ApiProperty)({ example: 'Joao', required: false }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
@@ -34,7 +55,8 @@ __decorate([
     __metadata("design:type", String)
 ], CreateMemberDto.prototype, "name", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: '12345678900' }),
+    (0, swagger_1.ApiProperty)({ example: '12345678900', required: false }),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateMemberDto.prototype, "cpf", void 0);
@@ -50,7 +72,8 @@ __decorate([
     __metadata("design:type", String)
 ], CreateMemberDto.prototype, "confirm_password", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: '11999999999' }),
+    (0, swagger_1.ApiProperty)({ example: '11999999999', required: false }),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateMemberDto.prototype, "phone", void 0);
@@ -60,17 +83,20 @@ __decorate([
     __metadata("design:type", String)
 ], CreateMemberDto.prototype, "email_personal", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: 'joao@university.edu' }),
+    (0, swagger_1.ApiProperty)({ example: 'joao@university.edu', required: false }),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsEmail)(),
     __metadata("design:type", String)
 ], CreateMemberDto.prototype, "email_university", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: '1234567890' }),
+    (0, swagger_1.ApiProperty)({ example: '1234567890', required: false }),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateMemberDto.prototype, "ra", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: '2000-01-01' }),
+    (0, swagger_1.ApiProperty)({ example: '2000-01-01', required: false }),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsDateString)(),
     __metadata("design:type", String)
 ], CreateMemberDto.prototype, "birth_date", void 0);
@@ -176,7 +202,8 @@ __decorate([
     __metadata("design:type", String)
 ], CreateMemberDto.prototype, "course_university_id", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: '2024-01-01' }),
+    (0, swagger_1.ApiProperty)({ example: '2024-01-01', required: false }),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsDateString)(),
     __metadata("design:type", String)
 ], CreateMemberDto.prototype, "admission_date", void 0);

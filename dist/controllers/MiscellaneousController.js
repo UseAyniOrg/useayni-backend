@@ -16,6 +16,7 @@ exports.MyInvitesController = exports.ApprovalController = exports.Miscellaneous
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
 const authorization_guard_1 = require("../middlewares/authorization.guard");
+const requireFeature_decorator_1 = require("../middlewares/requireFeature.decorator");
 const MiscellaneousService_1 = require("../services/MiscellaneousService");
 const MiscellaneousAccessService_1 = require("../services/MiscellaneousAccessService");
 const MiscellaneousWaitlistAttendanceService_1 = require("../services/MiscellaneousWaitlistAttendanceService");
@@ -30,48 +31,64 @@ let MiscellaneousController = class MiscellaneousController {
     // ─── CRUD ─────────────────────────────────────────────────────────────────
     async create(dto, req) {
         const user = req.user;
-        return this.miscService.create(dto, user.id, user.roles);
+        const dtoWithOrg = {
+            ...dto,
+            organization_id: req.tenant?.organization_id ?? dto.organization_id,
+        };
+        return this.miscService.create(dtoWithOrg, user.id, user.roles);
     }
     async findAll(filters, req) {
-        return this.miscService.findAll(filters, req.user.id);
+        // Inject tenant scope automatically
+        const filtersWithOrg = {
+            ...filters,
+            organization_id: req.tenant?.organization_id,
+        };
+        const canManageOrganization = req.user.roles.some((role) => ['EQUIPE_TECNICA', 'organization.admin', 'organization.manage'].includes(role));
+        return this.miscService.findAll(filtersWithOrg, req.user.id, canManageOrganization);
     }
-    async findOne(id) {
-        return this.miscService.findById(id);
+    async findOne(id, req) {
+        return this.miscService.findVisibleById(id, req.tenant?.organization_id, req.user.id, req.user.roles);
     }
     async update(id, dto, req) {
-        return this.miscService.update(id, dto, req.user.id);
+        return this.miscService.update(id, dto, req.user.id, req.user);
     }
     async archive(id, req) {
-        await this.miscService.archive(id, req.user.id);
+        await this.miscService.archive(id, req.user.id, req.user);
         return { message: 'Miscelânea arquivada com sucesso' };
     }
     async remove(id, req) {
-        await this.miscService.remove(id, req.user.id);
+        await this.miscService.remove(id, req.user.id, req.user);
     }
     // ─── HIERARCHY ────────────────────────────────────────────────────────────
     async getChildren(id) {
         return this.miscService.getChildren(id);
     }
     // ─── PEOPLE ───────────────────────────────────────────────────────────────
-    async getPeople(id) {
-        return this.miscService.getPeople(id);
+    async getPeople(id, req) {
+        return this.miscService.getPeople(id, req.user.id, req.tenant.organization_id, req.user);
+    }
+    async getExternalRegistrations(id, req) {
+        return this.miscService.getExternalRegistrations(id, req.user.id, req.tenant.organization_id, req.user);
     }
     async searchMembers(id, query, req) {
-        return this.miscService.searchMembers(id, req.user.id, query);
+        return this.miscService.searchMembers(id, req.user.id, query, req.tenant.organization_id, req.user);
     }
     async addOwner(id, body, req) {
-        const targetMemberId = await this.miscService.resolveMemberTarget(body.member_id, body.member_query);
-        return this.miscService.addOwner(id, targetMemberId, req.user.id);
+        const targetMemberId = await this.miscService.resolveMemberTarget(body.member_id, req.tenant.organization_id, body.member_query);
+        return this.miscService.addOwner(id, targetMemberId, req.user.id, req.user);
     }
     async removeOwner(id, userId, req) {
-        await this.miscService.removeOwner(id, userId, req.user.id);
+        await this.miscService.removeOwner(id, userId, req.user.id, req.user);
+    }
+    async joinMiscellaneous(id, req) {
+        return this.miscService.joinSelf(id, req.user.id);
     }
     async addMember(id, body, req) {
-        const targetMemberId = await this.miscService.resolveMemberTarget(body.member_id, body.member_query);
-        return this.miscService.addMember(id, targetMemberId, req.user.id);
+        const targetMemberId = await this.miscService.resolveMemberTarget(body.member_id, req.tenant.organization_id, body.member_query);
+        return this.miscService.addMember(id, targetMemberId, req.user.id, req.user);
     }
     async removeMember(id, userId, req) {
-        await this.miscService.removeMember(id, userId, req.user.id);
+        await this.miscService.removeMember(id, userId, req.user.id, req.user);
     }
     // ─── APPROVAL ─────────────────────────────────────────────────────────────
     async approve(id, dto, req) {
@@ -94,17 +111,17 @@ let MiscellaneousController = class MiscellaneousController {
         return this.accessService.createRequest(id, req.user.id, dto);
     }
     async listRequests(id, req) {
-        return this.accessService.listRequests(id, req.user.id);
+        return this.accessService.listRequests(id, req.user.id, req.user);
     }
     async reviewRequest(id, requestId, dto, req) {
-        return this.accessService.reviewRequest(id, requestId, req.user.id, dto);
+        return this.accessService.reviewRequest(id, requestId, req.user.id, dto, req.user);
     }
     // ─── INVITES ──────────────────────────────────────────────────────────────
     async createInvite(id, dto, req) {
-        return this.accessService.createInvite(id, req.user.id, dto);
+        return this.accessService.createInvite(id, req.user.id, dto, req.user);
     }
     async listInvites(id, req) {
-        return this.accessService.listPendingInvites(id, req.user.id);
+        return this.accessService.listPendingInvites(id, req.user.id, req.user);
     }
     async acceptInvite(id, inviteId, req) {
         await this.accessService.acceptInvite(id, inviteId, req.user.id);
@@ -115,31 +132,31 @@ let MiscellaneousController = class MiscellaneousController {
         return { message: 'Convite recusado' };
     }
     async cancelInvite(id, inviteId, req) {
-        await this.accessService.cancelInvite(id, inviteId, req.user.id);
+        await this.accessService.cancelInvite(id, inviteId, req.user.id, req.user);
     }
     // ─── WAITLIST ─────────────────────────────────────────────────────────────
     async joinWaitlist(id, req) {
         return this.waitlistService.joinWaitlist(id, req.user.id);
     }
     async getWaitlist(id, req) {
-        return this.waitlistService.getWaitlist(id, req.user.id);
+        return this.waitlistService.getWaitlist(id, req.user.id, req.user);
     }
     async promote(id, userId, req) {
-        await this.waitlistService.promote(id, userId, req.user.id);
+        await this.waitlistService.promote(id, userId, req.user.id, req.user);
         return { message: 'Usuário promovido da lista de espera' };
     }
     async closeRegistrations(id, req) {
-        await this.miscService.ensureOwner(id, req.user.id);
+        await this.miscService.ensureOwner(id, req.user.id, req.user);
         await this.miscService.closeRegistrations(id);
         return { message: 'Inscrições encerradas' };
     }
     // ─── PUBLIC ACCESS ────────────────────────────────────────────────────────
     async enablePublicAccess(id, req) {
-        const slug = await this.miscService.enablePublicAccess(id, req.user.id);
-        return { slug, url: `/p/${slug}` };
+        const slug = await this.miscService.enablePublicAccess(id, req.user.id, req.user);
+        return { slug, url: `/eventos/${slug}` };
     }
     async disablePublicAccess(id, req) {
-        await this.miscService.disablePublicAccess(id, req.user.id);
+        await this.miscService.disablePublicAccess(id, req.user.id, req.user);
         return { message: 'Acesso público desativado' };
     }
 };
@@ -167,8 +184,9 @@ __decorate([
     (0, common_1.Get)(':id'),
     (0, swagger_1.ApiOperation)({ summary: 'Get miscellaneous by ID' }),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], MiscellaneousController.prototype, "findOne", null);
 __decorate([
@@ -212,10 +230,20 @@ __decorate([
     (0, common_1.Get)(':id/people'),
     (0, swagger_1.ApiOperation)({ summary: 'Get owners and members' }),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], MiscellaneousController.prototype, "getPeople", null);
+__decorate([
+    (0, common_1.Get)(':id/external-registrations'),
+    (0, swagger_1.ApiOperation)({ summary: 'List external registrations for an event (owner only)' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], MiscellaneousController.prototype, "getExternalRegistrations", null);
 __decorate([
     (0, common_1.Get)(':id/search-members'),
     (0, swagger_1.ApiOperation)({ summary: 'Search members by name or email' }),
@@ -248,8 +276,17 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], MiscellaneousController.prototype, "removeOwner", null);
 __decorate([
+    (0, common_1.Post)(':id/join'),
+    (0, swagger_1.ApiOperation)({ summary: 'Join miscellaneous (any authenticated member)' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], MiscellaneousController.prototype, "joinMiscellaneous", null);
+__decorate([
     (0, common_1.Post)(':id/members'),
-    (0, swagger_1.ApiOperation)({ summary: 'Add member' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Add member (owner only)' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, common_1.Req)()),
@@ -447,7 +484,8 @@ __decorate([
 exports.MiscellaneousController = MiscellaneousController = __decorate([
     (0, common_1.Controller)('miscellaneous'),
     (0, swagger_1.ApiTags)('Miscellaneous'),
-    (0, common_1.UseGuards)(authorization_guard_1.AuthorizationGuard),
+    (0, common_1.UseGuards)(authorization_guard_1.AuthorizationGuard, requireFeature_decorator_1.FeatureFlagGuard),
+    (0, requireFeature_decorator_1.RequireFeature)('miscellaneous_full'),
     (0, swagger_1.ApiBearerAuth)(),
     __metadata("design:paramtypes", [MiscellaneousService_1.MiscellaneousService,
         MiscellaneousAccessService_1.MiscellaneousAccessService,
@@ -473,6 +511,8 @@ exports.ApprovalController = ApprovalController = __decorate([
     (0, common_1.Controller)('approvals'),
     (0, swagger_1.ApiTags)('Approvals'),
     (0, common_1.UseGuards)(authorization_guard_1.AuthorizationGuard),
+    (0, common_1.UseGuards)(requireFeature_decorator_1.FeatureFlagGuard),
+    (0, requireFeature_decorator_1.RequireFeature)('miscellaneous_full'),
     (0, swagger_1.ApiBearerAuth)(),
     __metadata("design:paramtypes", [MiscellaneousService_1.MiscellaneousService])
 ], ApprovalController);
@@ -497,6 +537,8 @@ exports.MyInvitesController = MyInvitesController = __decorate([
     (0, common_1.Controller)('invites'),
     (0, swagger_1.ApiTags)('Invites'),
     (0, common_1.UseGuards)(authorization_guard_1.AuthorizationGuard),
+    (0, common_1.UseGuards)(requireFeature_decorator_1.FeatureFlagGuard),
+    (0, requireFeature_decorator_1.RequireFeature)('miscellaneous_full'),
     (0, swagger_1.ApiBearerAuth)(),
     __metadata("design:paramtypes", [MiscellaneousAccessService_1.MiscellaneousAccessService])
 ], MyInvitesController);

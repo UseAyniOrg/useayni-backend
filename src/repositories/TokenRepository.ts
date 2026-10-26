@@ -18,6 +18,14 @@ export class TokenRepository {
     return this.repository.delete({ memberId, type });
   }
 
+  async deleteByAccountId(accountId: string) {
+    return this.repository.delete({ account_id: accountId });
+  }
+
+  async deleteByAccountIdAndType(accountId: string, type: "access" | "refresh") {
+    return this.repository.delete({ account_id: accountId, type });
+  }
+
   async deleteByToken(token: string) {
     return this.repository.delete({ token });
   }

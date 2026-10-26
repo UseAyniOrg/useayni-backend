@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
 import { IsNull } from 'typeorm';
 import bcrypt from 'bcryptjs';
 import { MemberRepository } from '../repositories/MemberRepository';
@@ -15,6 +15,9 @@ import { Member, MemberRegistrationStatus } from '../models/member';
 import { MemberProfileDto } from '../dto/members/member-profile.dto';
 import { AppDataBase } from '../db';
 import { CreateMemberDto } from '../dto/members/create-member.dto';
+import { AccountProvisioningService } from './AccountProvisioningService';
+import { ExternalProfileTypesService } from './ExternalProfileTypesService';
+import { isValidCpf } from '../helpers/cpf';
 
 @Injectable()
 export class MemberService {
@@ -26,16 +29,18 @@ export class MemberService {
     private readonly universityRepository: UniversityRepository,
     private readonly courseRepository: CourseRepository,
     private readonly courseUniversityRepository: CourseUniversityRepository,
-    private readonly roleRepository: RoleRepository
+    private readonly roleRepository: RoleRepository,
+    private readonly accountProvisioning: AccountProvisioningService,
   ) {}
 
-  async getMembersForApproval(reviewerId: string) {
+  async getMembersForApproval(reviewerId: string, organizationId: string) {
     const reviewer = await this.memberRepository.findByIdWithRolesAndPermissions(reviewerId);
 
     if (!reviewer) throw new Error('Reviewer not found');
 
     const pendingMembers = await this.memberRepository.findByRegistrationStatus(
-      MemberRegistrationStatus.PENDING
+      MemberRegistrationStatus.PENDING,
+      organizationId,
     );
 
     const result: Member[] = [];
@@ -50,12 +55,12 @@ export class MemberService {
 
     return result;
   }
-  async getAllMembers() {
-    return this.memberRepository.findAll();
+  async getAllMembers(organizationId: string) {
+    return this.memberRepository.findAll(organizationId);
   }
 
-  async getSponsorOptions() {
-    const members = await this.memberRepository.findSponsorOptions();
+  async getSponsorOptions(organizationId: string) {
+    const members = await this.memberRepository.findSponsorOptions(organizationId);
 
     return members.map(member => {
       const activeCourse =
@@ -83,8 +88,8 @@ export class MemberService {
     });
   }
 
-  async searchMembers(query: string, limit: number) {
-    const members = await this.memberRepository.search(query, limit);
+  async searchMembers(query: string, limit: number, organizationId: string) {
+    const members = await this.memberRepository.search(query, limit, organizationId);
     return {
       data: members.map(m => ({
         id: m.id,
@@ -95,34 +100,38 @@ export class MemberService {
     };
   }
 
-  async getMemberById(id: string) {
-    const member = await this.memberRepository.findByIdWithRelations(id);
+  async getMemberById(id: string, organizationId: string) {
+    const member = await this.memberRepository.findByIdWithRelations(id, organizationId);
     if (!member) throw new Error('Member not found');
     return member;
   }
 
-  async getMemberByEmail(email: string) {
-    const member = await this.memberRepository.findByEmail(email);
+  async getMemberByEmail(email: string, organizationId: string) {
+    const member = await this.memberRepository.findByEmail(email, organizationId);
     if (!member) throw new Error('Member not found');
     return member;
   }
 
-  async getMembersBySponsor(sponsorId: string) {
-    const members = await this.memberRepository.findBySponsor(sponsorId);
+  async getMembersBySponsor(sponsorId: string, organizationId: string) {
+    const members = await this.memberRepository.findBySponsor(sponsorId, organizationId);
     if (members.length === 0) throw new Error('No members found with this sponsor');
     return members;
   }
 
-  async getPendingMembers() {
-    return this.memberRepository.findByRegistrationStatus(MemberRegistrationStatus.PENDING);
+  async getPendingMembers(organizationId: string) {
+    return this.memberRepository.findByRegistrationStatus(
+      MemberRegistrationStatus.PENDING,
+      organizationId,
+    );
   }
-  async getPendingMembersForReviewer(reviewerId: string): Promise<Member[]> {
+  async getPendingMembersForReviewer(reviewerId: string, organizationId: string): Promise<Member[]> {
     const reviewer = await this.memberRepository.findByIdWithRolesAndPermissions(reviewerId);
 
     if (!reviewer) throw new Error('Reviewer not found');
 
     const pending = await this.memberRepository.findByRegistrationStatus(
-      MemberRegistrationStatus.PENDING
+      MemberRegistrationStatus.PENDING,
+      organizationId,
     );
 
     // equipe técnica vê tudo
@@ -142,13 +151,16 @@ export class MemberService {
 
     return filtered;
   }
-  async getMemberBySlug(slug: string): Promise<MemberProfileDto> {
-    const member = await this.memberRepository.findByNameSlug(slug);
+  async getMemberBySlug(slug: string, organizationId: string): Promise<MemberProfileDto> {
+    const member = await this.memberRepository.findByNameSlug(slug, organizationId);
     if (!member) throw new Error('Member not found');
 
     let sponsor = null;
     if (member.sponsor) {
-      const sponsorMember = await this.memberRepository.findById(member.sponsor);
+      const sponsorMember = await this.memberRepository.findById(
+        member.sponsor,
+        member.organization_id,
+      );
       sponsor = sponsorMember
         ? {
             id: sponsorMember.id,
@@ -211,26 +223,34 @@ export class MemberService {
   async createMember(
     memberData: CreateMemberDto,
     password: string,
+    organizationId: string,
     defaultSponsorMemberId?: string
   ) {
+    const profileTypes = new ExternalProfileTypesService();
+    const registrationProfile = await profileTypes.resolve(organizationId, memberData.organization_profile_key, memberData.profile_data);
+    if ((memberData.organization_profile_key || Object.keys(registrationProfile.values).length) && memberData.accepted_profile_sharing !== true) {
+      throw new BadRequestException('Confirme o compartilhamento dos dados do perfil com esta organização.');
+    }
     if (memberData.confirm_password && memberData.confirm_password !== password) {
       throw new Error('Senha e confirmaÃ§Ã£o de senha nÃ£o conferem');
     }
 
     const academicData = await this.resolveAcademicData(memberData);
     const name = this.resolveMemberName(memberData);
-    const birth_date = this.resolveDateOnly(memberData.birth_date);
-    const admission_date = this.resolveDateOnly(memberData.admission_date);
+    const birth_date = memberData.birth_date ? this.resolveDateOnly(memberData.birth_date) : null;
+    const admission_date = memberData.admission_date
+      ? this.resolveDateOnly(memberData.admission_date)
+      : null;
 
     const normalizedData = {
       name,
-      cpf: memberData.cpf.replace(/\D/g, ''),
-      phone: memberData.phone,
-      email_personal: memberData.email_personal,
-      email_university: memberData.email_university,
+      cpf: memberData.cpf?.replace(/\D/g, '') || null,
+      phone: memberData.phone || null,
+      email_personal: memberData.email_personal.trim().toLowerCase(),
+      email_university: memberData.email_university?.trim().toLowerCase() || null,
       birth_date,
       admission_date,
-      ra: String(memberData.ra),
+      ra: memberData.ra ? String(memberData.ra) : null,
 
       city_id: academicData.cityId || memberData.city_id || null,
       current_semester: memberData.current_semester || null,
@@ -241,15 +261,16 @@ export class MemberService {
       biography: memberData.biography || undefined,
     };
 
-    if (!this.isValidCpf(normalizedData.cpf)) {
+    if (normalizedData.cpf && !isValidCpf(normalizedData.cpf)) {
       throw new Error('CPF invalido');
     }
 
     const existing = await this.memberRepository.existsByEmailOrCpfOrRa(
+      organizationId,
       normalizedData.email_personal,
-      normalizedData.email_university,
-      normalizedData.cpf,
-      normalizedData.ra
+      normalizedData.email_university ?? undefined,
+      normalizedData.cpf ?? undefined,
+      normalizedData.ra ?? undefined
     );
 
     if (existing) throw new Error('CPF, RA ou email já cadastrados');
@@ -257,19 +278,153 @@ export class MemberService {
     const sponsorId = await this.resolveSponsorId(memberData.sponsor, defaultSponsorMemberId);
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const newMember = await AppDataBase.transaction(async (manager) => {
+      const existingAccounts = await manager.query(
+        `SELECT id, password
+         FROM user_accounts
+         WHERE lower(email) = lower($1)
+         FOR UPDATE`,
+        [normalizedData.email_personal],
+      );
+      let accountId: string;
+      if (existingAccounts.length > 0) {
+        const account = existingAccounts[0] as { id: string; password: string };
+        if (!(await bcrypt.compare(password, account.password))) {
+          throw new ConflictException(
+            'Este email já possui uma conta UseAyni. Entre com sua senha atual para se vincular a esta organização.',
+          );
+        }
+        accountId = account.id;
+      } else {
+        const accounts = await manager.query(
+          `INSERT INTO user_accounts (email, password)
+           VALUES (lower($1), $2)
+           RETURNING id`,
+          [normalizedData.email_personal, hashedPassword],
+        );
+        accountId = accounts[0].id;
+      }
 
-    const newMember = await this.memberRepository.create({
-      ...normalizedData,
-      password: hashedPassword,
-      sponsor: sponsorId,
-      slug: this.generateSlug(name),
+      const customFieldFeatures = await manager.query(
+        `SELECT enabled
+         FROM organization_features
+         WHERE organization_id = $1 AND feature_slug = 'custom_fields'`,
+        [organizationId],
+      ) as { enabled: boolean }[];
+      const customFieldsEnabled = customFieldFeatures[0]?.enabled ?? false;
+      const definitions = customFieldsEnabled
+        ? await manager.query(
+        `SELECT field_key, field_type, required, options
+         FROM member_custom_field_definitions
+         WHERE organization_id = $1`,
+        [organizationId],
+      ) as {
+        field_key: string;
+        field_type: string;
+        required: boolean;
+        options: string[] | null;
+      }[]
+        : [];
+      const approvalFeatures = await manager.query(
+        `SELECT enabled
+         FROM organization_features
+         WHERE organization_id = $1 AND feature_slug = 'registration_approval'`,
+        [organizationId],
+      ) as { enabled: boolean }[];
+      const registrationStatus = approvalFeatures.length === 0 || approvalFeatures[0].enabled
+        ? MemberRegistrationStatus.PENDING
+        : MemberRegistrationStatus.APPROVED;
+      const customFields = { ...(memberData.custom_fields ?? {}) };
+      const legacyFieldValues: Record<string, string> = {};
+      if (normalizedData.cpf) legacyFieldValues.cpf = normalizedData.cpf;
+      if (normalizedData.ra) legacyFieldValues.ra = normalizedData.ra;
+      if (normalizedData.email_university) {
+        legacyFieldValues.email_university = normalizedData.email_university;
+      }
+      if (memberData.admission_date) {
+        legacyFieldValues.admission_date = memberData.admission_date;
+      }
+      for (const definition of definitions) {
+        if (customFields[definition.field_key] === undefined &&
+            legacyFieldValues[definition.field_key] !== undefined) {
+          customFields[definition.field_key] = legacyFieldValues[definition.field_key];
+        }
+      }
+      const definitionsByKey = new Map(definitions.map((definition) => [definition.field_key, definition]));
+      const unknownFields = Object.keys(customFields).filter((key) => !definitionsByKey.has(key));
+      if (unknownFields.length > 0) {
+        throw new ConflictException(`Campos de cadastro não configurados: ${unknownFields.join(', ')}`);
+      }
+
+      for (const definition of definitions) {
+        const value = customFields[definition.field_key];
+        if (
+          definition.required &&
+          (value === undefined ||
+            value === null ||
+            value === '' ||
+            (definition.field_type === 'checkbox' && value !== true))
+        ) {
+          throw new ConflictException(`O campo "${definition.field_key}" é obrigatório.`);
+        }
+        if (definition.field_type === 'select' && value !== undefined && value !== null &&
+            !definition.options?.includes(String(value))) {
+          throw new ConflictException(`Valor inválido para o campo "${definition.field_key}".`);
+        }
+        if (value === undefined || value === null || value === '') continue;
+        if (definition.field_type === 'file') {
+          throw new ConflictException(`O envio de arquivos para "${definition.field_key}" ainda não está habilitado.`);
+        }
+        if (definition.field_type === 'text' && typeof value !== 'string') {
+          throw new ConflictException(`O campo "${definition.field_key}" deve ser texto.`);
+        }
+        if (definition.field_type === 'number' && (typeof value !== 'number' || !Number.isFinite(value))) {
+          throw new ConflictException(`O campo "${definition.field_key}" deve ser numérico.`);
+        }
+        if (definition.field_type === 'date' && (
+          typeof value !== 'string' ||
+          !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
+          Number.isNaN(Date.parse(`${value}T00:00:00`)) ||
+          new Date(`${value}T00:00:00.000Z`).toISOString().slice(0, 10) !== value
+        )) {
+          throw new ConflictException(`O campo "${definition.field_key}" deve ser uma data válida.`);
+        }
+        if (definition.field_type === 'checkbox' && typeof value !== 'boolean') {
+          throw new ConflictException(`O campo "${definition.field_key}" deve ser verdadeiro ou falso.`);
+        }
+      }
+
+      const member = manager.getRepository(Member).create({
+        ...normalizedData,
+        registration_status: registrationStatus,
+        account_id: accountId,
+        organization_id: organizationId,
+        password: hashedPassword,
+        sponsor: sponsorId,
+        slug: this.generateSlug(name),
+      });
+      const savedMember = await manager.getRepository(Member).save(member);
+      if (memberData.accepted_profile_sharing === true) {
+        await profileTypes.saveAccountProfile(manager, accountId, organizationId, name,
+          normalizedData.phone, registrationProfile.definition, registrationProfile.values, normalizedData.cpf);
+      }
+
+      for (const [fieldKey, value] of Object.entries(customFields)) {
+        await manager.query(
+          `INSERT INTO member_custom_field_values (member_id, field_key, value)
+           VALUES ($1, $2, $3)`,
+          [savedMember.id, fieldKey, value === null ? null : String(value)],
+        );
+      }
+
+      return savedMember;
     });
 
     if (academicData.courseUniversityId) {
       await this.memberRepository.addCourseToMember(
         newMember.id,
         academicData.courseUniversityId,
-        normalizedData.admission_date
+        normalizedData.admission_date ?? undefined
       );
     }
 
@@ -351,23 +506,6 @@ export class MemberService {
     return composedName;
   }
 
-  private isValidCpf(cpf: string): boolean {
-    const digits = cpf.replace(/\D/g, '');
-    if (digits.length !== 11) return false;
-    if (/^(\d)\1{10}$/.test(digits)) return false;
-
-    const calculateDigit = (base: string, factor: number) => {
-      const total = base.split('').reduce((sum, digit) => sum + Number(digit) * factor--, 0);
-      const remainder = (total * 10) % 11;
-      return remainder === 10 ? 0 : remainder;
-    };
-
-    const firstDigit = calculateDigit(digits.slice(0, 9), 10);
-    const secondDigit = calculateDigit(digits.slice(0, 10), 11);
-
-    return firstDigit === Number(digits[9]) && secondDigit === Number(digits[10]);
-  }
-
   private async resolveAcademicData(memberData: CreateMemberDto): Promise<{
     cityId?: string;
     courseUniversityId?: string;
@@ -439,8 +577,12 @@ export class MemberService {
     return { cityId, courseUniversityId: courseUniversity.id };
   }
 
-  async updateMember(id: string, updateData: Partial<Member> & { course_university_id?: string }) {
-    const existingMember = await this.memberRepository.findById(id);
+  async updateMember(
+    id: string,
+    updateData: Partial<Member> & { course_university_id?: string },
+    organizationId: string,
+  ) {
+    const existingMember = await this.memberRepository.findById(id, organizationId);
     if (!existingMember) throw new Error('Member not found');
 
     if (updateData.course_university_id) {
@@ -451,7 +593,9 @@ export class MemberService {
     return this.memberRepository.update(id, updateData);
   }
 
-  async approveMemberRegistration(memberId: string, reviewerId: string) {
+  async approveMemberRegistration(memberId: string, reviewerId: string, organizationId: string) {
+    const target = await this.memberRepository.findById(memberId, organizationId);
+    if (!target) throw new Error('Member not found in this organization');
     await this.ensureCanReviewRegistration(memberId, reviewerId);
     const updated = await this.memberRepository.updateRegistrationStatus(
       memberId,
@@ -465,17 +609,25 @@ export class MemberService {
     };
   }
 
-  async rejectMemberRegistration(memberId: string, reviewerId: string, reason?: string) {
+  async rejectMemberRegistration(
+    memberId: string,
+    reviewerId: string,
+    organizationId: string,
+    reason?: string,
+  ) {
+    const target = await this.memberRepository.findById(memberId, organizationId);
+    if (!target) throw new Error('Member not found in this organization');
     await this.ensureCanReviewRegistration(memberId, reviewerId);
-
-    const member = await this.memberRepository.findById(memberId);
-    if (!member) throw new Error('Member not found');
-
-    await this.memberRepository.delete(memberId);
+    const member = await this.memberRepository.updateRegistrationStatus(
+      memberId,
+      MemberRegistrationStatus.REJECTED,
+      reviewerId,
+      reason,
+    );
 
     return {
-      message: 'Member rejected and deleted successfully',
-      memberId,
+      message: 'Member registration rejected',
+      member,
     };
   }
 
@@ -483,7 +635,9 @@ export class MemberService {
     const reviewer = await this.memberRepository.findByIdWithRolesAndPermissions(reviewerId);
     if (!reviewer) throw new Error('Reviewer not found');
 
-    if (reviewer.roles?.some(role => role.name === 'EQUIPE_TECNICA')) {
+    if (reviewer.roles?.some(role =>
+      role.name === 'EQUIPE_TECNICA' || role.name === 'organization.admin',
+    )) {
       return;
     }
 
@@ -699,6 +853,19 @@ export class MemberService {
       [programSemesterId, memberId]
     );
     await this.tokenRepository.deleteByMemberId(memberId);
+  }
+
+  // ─── Tenant: invite member by email ──────────────────────────────────────
+
+  async inviteMemberByEmail(email: string, organizationId: string, message?: string) {
+    const provisioned = await this.accountProvisioning.provisionMember(organizationId, email, false);
+    return {
+      ...provisioned,
+      message: provisioned.temporary_password
+        ? 'Acesso criado. Entregue a senha temporária ao membro por um canal seguro; ele deverá trocá-la no primeiro login.'
+        : 'A conta existente foi vinculada à organização. O membro deve usar a senha que já possui.',
+      ...(message ? { invitation_message: message } : {}),
+    };
   }
 
   private async canReviewerAccessMember(reviewerId: string, member: Member): Promise<boolean> {

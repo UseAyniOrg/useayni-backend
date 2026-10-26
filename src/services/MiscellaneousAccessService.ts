@@ -1,10 +1,11 @@
 import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
-import { MiscellaneousRequestRepository, MiscellaneousInviteRepository, MiscellaneousParticipantRepository, MiscellaneousOwnerRepository } from '../repositories/MiscellaneousSubRepositories';
+import { MiscellaneousRequestRepository, MiscellaneousInviteRepository, MiscellaneousParticipantRepository } from '../repositories/MiscellaneousSubRepositories';
 import { MiscellaneousRepository } from '../repositories/MiscellaneousRepository';
 import { CreateRequestDto, ReviewRequestDto, CreateInviteDto, RejectInviteDto } from '../dto/miscellaneous/actions.dto';
 import { RequestStatus } from '../models/miscellaneousRequest';
 import { InviteStatus } from '../models/miscellaneousInvite';
 import { MiscellaneousVisibility } from '../models/miscellaneous';
+import { MiscellaneousService, MiscellaneousManagementContext } from './MiscellaneousService';
 
 const REQUEST_EXPIRY_DAYS = 30;
 const INVITE_EXPIRY_DAYS = 7;
@@ -16,7 +17,7 @@ export class MiscellaneousAccessService {
     private readonly requestRepo: MiscellaneousRequestRepository,
     private readonly inviteRepo: MiscellaneousInviteRepository,
     private readonly participantRepo: MiscellaneousParticipantRepository,
-    private readonly ownerRepo: MiscellaneousOwnerRepository,
+    private readonly miscService: MiscellaneousService,
   ) {}
 
   // Requests
@@ -42,13 +43,13 @@ export class MiscellaneousAccessService {
     });
   }
 
-  async listRequests(miscId: string, requesterId: string) {
-    await this.ensureOwner(miscId, requesterId);
+  async listRequests(miscId: string, requesterId: string, context?: MiscellaneousManagementContext) {
+    await this.miscService.ensureOwner(miscId, requesterId, context);
     return this.requestRepo.findByMiscellaneous(miscId);
   }
 
-  async reviewRequest(miscId: string, requestId: string, reviewerId: string, dto: ReviewRequestDto) {
-    await this.ensureOwner(miscId, reviewerId);
+  async reviewRequest(miscId: string, requestId: string, reviewerId: string, dto: ReviewRequestDto, context?: MiscellaneousManagementContext) {
+    await this.miscService.ensureOwner(miscId, reviewerId, context);
     const request = await this.requestRepo.findById(requestId);
     if (!request) throw new NotFoundException('Solicitação não encontrada');
     if (request.miscellaneous_id !== miscId) throw new BadRequestException('Solicitação não pertence a esta miscelânea');
@@ -69,8 +70,8 @@ export class MiscellaneousAccessService {
   }
 
   // Invites
-  async createInvite(miscId: string, inviterId: string, dto: CreateInviteDto) {
-    await this.ensureOwner(miscId, inviterId);
+  async createInvite(miscId: string, inviterId: string, dto: CreateInviteDto, context?: MiscellaneousManagementContext) {
+    await this.miscService.ensureOwner(miscId, inviterId, context);
 
     const already = await this.inviteRepo.hasPendingInvite(miscId, dto.invited_user_id);
     if (already) throw new BadRequestException('Já existe um convite pendente para este usuário');
@@ -114,16 +115,17 @@ export class MiscellaneousAccessService {
     });
   }
 
-  async cancelInvite(miscId: string, inviteId: string, requesterId: string) {
-    await this.ensureOwner(miscId, requesterId);
+  async cancelInvite(miscId: string, inviteId: string, requesterId: string, context?: MiscellaneousManagementContext) {
+    await this.miscService.ensureOwner(miscId, requesterId, context);
     const invite = await this.inviteRepo.findById(inviteId);
     if (!invite) throw new NotFoundException('Convite não encontrado');
+    if (invite.miscellaneous_id !== miscId) throw new NotFoundException('Convite não encontrado nesta miscelânea');
     if (invite.status !== InviteStatus.PENDING) throw new BadRequestException('Convite não pode ser cancelado');
     await this.inviteRepo.update(inviteId, { status: InviteStatus.CANCELLED });
   }
 
-  async listPendingInvites(miscId: string, requesterId: string) {
-    await this.ensureOwner(miscId, requesterId);
+  async listPendingInvites(miscId: string, requesterId: string, context?: MiscellaneousManagementContext) {
+    await this.miscService.ensureOwner(miscId, requesterId, context);
     return this.inviteRepo.findPendingByMiscellaneous(miscId);
   }
 
@@ -131,8 +133,4 @@ export class MiscellaneousAccessService {
     return this.inviteRepo.findPendingForUser(userId);
   }
 
-  private async ensureOwner(miscId: string, userId: string) {
-    const isOwner = await this.ownerRepo.isOwner(miscId, userId);
-    if (!isOwner) throw new ForbiddenException('Apenas donos podem realizar esta ação');
-  }
 }

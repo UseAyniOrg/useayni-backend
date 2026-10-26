@@ -23,6 +23,12 @@ let TokenRepository = class TokenRepository {
     async deleteByMemberIdAndType(memberId, type) {
         return this.repository.delete({ memberId, type });
     }
+    async deleteByAccountId(accountId) {
+        return this.repository.delete({ account_id: accountId });
+    }
+    async deleteByAccountIdAndType(accountId, type) {
+        return this.repository.delete({ account_id: accountId, type });
+    }
     async deleteByToken(token) {
         return this.repository.delete({ token });
     }

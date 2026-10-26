@@ -33,36 +33,36 @@ __decorate([
     __metadata("design:type", String)
 ], Member.prototype, "name", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ length: 14, unique: true, select: false }),
-    __metadata("design:type", String)
+    (0, typeorm_1.Column)({ type: "varchar", length: 14, nullable: true, select: false }),
+    __metadata("design:type", Object)
 ], Member.prototype, "cpf", void 0);
 __decorate([
     (0, typeorm_1.Column)({ length: 100, select: false }),
     __metadata("design:type", String)
 ], Member.prototype, "password", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ length: 20 }),
-    __metadata("design:type", String)
+    (0, typeorm_1.Column)({ type: "varchar", length: 20, nullable: true }),
+    __metadata("design:type", Object)
 ], Member.prototype, "phone", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ length: 255, unique: true }),
+    (0, typeorm_1.Column)({ length: 255 }),
     __metadata("design:type", String)
 ], Member.prototype, "email_personal", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ length: 255, unique: true }),
-    __metadata("design:type", String)
+    (0, typeorm_1.Column)({ type: "varchar", length: 255, nullable: true }),
+    __metadata("design:type", Object)
 ], Member.prototype, "email_university", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ length: 10, unique: true }),
-    __metadata("design:type", String)
+    (0, typeorm_1.Column)({ type: "varchar", length: 10, nullable: true }),
+    __metadata("design:type", Object)
 ], Member.prototype, "ra", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: "text", nullable: true }),
     __metadata("design:type", String)
 ], Member.prototype, "profile_picture_url", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "date" }),
-    __metadata("design:type", Date)
+    (0, typeorm_1.Column)({ type: "date", nullable: true }),
+    __metadata("design:type", Object)
 ], Member.prototype, "birth_date", void 0);
 __decorate([
     (0, typeorm_1.OneToMany)(() => memberCourse_1.MemberCourse, (mc) => mc.member),
@@ -78,8 +78,8 @@ __decorate([
     __metadata("design:type", city_1.City)
 ], Member.prototype, "city", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "date" }),
-    __metadata("design:type", Date)
+    (0, typeorm_1.Column)({ type: "date", nullable: true }),
+    __metadata("design:type", Object)
 ], Member.prototype, "admission_date", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: "int", nullable: true }),
@@ -175,6 +175,14 @@ __decorate([
     (0, typeorm_1.Column)({ length: 255, nullable: true }),
     __metadata("design:type", String)
 ], Member.prototype, "slug", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "uuid" }),
+    __metadata("design:type", String)
+], Member.prototype, "account_id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "uuid" }),
+    __metadata("design:type", String)
+], Member.prototype, "organization_id", void 0);
 __decorate([
     (0, typeorm_1.Column)({
         type: "varchar",

@@ -43,7 +43,7 @@ let MiscellaneousRepository = class MiscellaneousRepository {
     async archive(id) {
         await this.repo.update(id, { status: miscellaneous_1.MiscellaneousStatus.ARCHIVED });
     }
-    async findWithFilters(filters, userId) {
+    async findWithFilters(filters, userId, canManageOrganization = false) {
         const page = filters.page ?? 1;
         const limit = filters.limit ?? 20;
         const offset = (page - 1) * limit;
@@ -52,9 +52,16 @@ let MiscellaneousRepository = class MiscellaneousRepository {
             .leftJoinAndSelect('m.creator', 'creator')
             .leftJoin('miscellaneous_owners', 'mo', 'mo.miscellaneous_id = m.id')
             .leftJoin('miscellaneous_participants', 'mp', 'mp.miscellaneous_id = m.id')
-            .where('m.deleted_at IS NULL')
-            .andWhere(`(m.participation_type = 'public' OR mo.member_id = :uid OR mp.member_id = :uid OR m.created_by = :uid)`, { uid: userId })
-            .groupBy('m.id, creator.id');
+            .where('m.deleted_at IS NULL');
+        if (!canManageOrganization)
+            query = query.andWhere(`(m.participation_type = 'public' OR m.scope = 'general' OR mo.member_id = :uid OR mp.member_id = :uid OR m.created_by = :uid)`, { uid: userId });
+        query = query.groupBy('m.id, creator.id');
+        // ─── Multi-tenant: scope to organization when provided ────────────────
+        if (filters.organization_id) {
+            query = query.andWhere('m.organization_id = :orgId', {
+                orgId: filters.organization_id,
+            });
+        }
         if (filters.type)
             query = query.andWhere('m.type = :type', { type: filters.type });
         if (filters.status)

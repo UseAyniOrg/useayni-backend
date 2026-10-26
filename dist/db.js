@@ -42,6 +42,7 @@ const member_1 = require("./models/member");
 const goal_1 = require("./models/goal");
 const projectTask_1 = require("./models/projectTask");
 const typeorm_1 = require("typeorm");
+const path_1 = require("path");
 const token_1 = require("./models/token");
 const role_1 = require("./models/role");
 const permission_1 = require("./models/permission");
@@ -65,6 +66,23 @@ const miscellaneousApprovalLog_1 = require("./models/miscellaneousApprovalLog");
 const attendance_1 = require("./models/attendance");
 const form_1 = require("./models/form");
 const externalProfile_1 = require("./models/externalProfile");
+// ─── Multi-tenant models ───────────────────────────────────────────────────
+const plan_1 = require("./models/plan");
+const organization_1 = require("./models/organization");
+const organizationFeature_1 = require("./models/organizationFeature");
+const orgUnitType_1 = require("./models/orgUnitType");
+const orgUnit_1 = require("./models/orgUnit");
+const position_1 = require("./models/position");
+const mandate_1 = require("./models/mandate");
+const auditLog_1 = require("./models/auditLog");
+const memberCustomField_1 = require("./models/memberCustomField");
+const registrationDraft_1 = require("./models/registrationDraft");
+const externalAccountProfile_1 = require("./models/externalAccountProfile");
+const externalEventRegistration_1 = require("./models/externalEventRegistration");
+const globalUserAccount_1 = require("./models/globalUserAccount");
+const mediaAsset_1 = require("./models/mediaAsset");
+const orgHomeConfig_1 = require("./models/orgHomeConfig");
+const orgHomeSection_1 = require("./models/orgHomeSection");
 const dotenv = __importStar(require("dotenv"));
 dotenv.config();
 const env = process.env;
@@ -114,8 +132,26 @@ const baseConfig = {
         form_1.FormResponse,
         form_1.FormAnswer,
         externalProfile_1.ExternalProfile,
+        // ─── Multi-tenant ────────────────────────────────────────────────────
+        plan_1.Plan,
+        organization_1.Organization,
+        organizationFeature_1.OrganizationFeature,
+        orgUnitType_1.OrgUnitType,
+        orgUnit_1.OrgUnit,
+        position_1.Position,
+        mandate_1.Mandate,
+        auditLog_1.AuditLog,
+        memberCustomField_1.MemberCustomFieldDefinition,
+        memberCustomField_1.MemberCustomFieldValue,
+        registrationDraft_1.RegistrationDraft,
+        externalAccountProfile_1.ExternalAccountProfile,
+        externalEventRegistration_1.ExternalEventRegistration,
+        globalUserAccount_1.UserAccount,
+        mediaAsset_1.MediaAsset,
+        orgHomeConfig_1.OrgHomeConfig,
+        orgHomeSection_1.OrgHomeSection,
     ],
-    migrations: ['src/migrations/*.ts'],
+    migrations: [(0, path_1.join)(__dirname, 'migrations', '*.{js,ts}')],
     migrationsTableName: 'migrations',
 };
 const dataSourceOptions = databaseUrl

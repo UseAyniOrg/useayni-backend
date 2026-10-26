@@ -16,15 +16,16 @@ const MiscellaneousRepository_1 = require("../repositories/MiscellaneousReposito
 const miscellaneousRequest_1 = require("../models/miscellaneousRequest");
 const miscellaneousInvite_1 = require("../models/miscellaneousInvite");
 const miscellaneous_1 = require("../models/miscellaneous");
+const MiscellaneousService_1 = require("./MiscellaneousService");
 const REQUEST_EXPIRY_DAYS = 30;
 const INVITE_EXPIRY_DAYS = 7;
 let MiscellaneousAccessService = class MiscellaneousAccessService {
-    constructor(miscRepo, requestRepo, inviteRepo, participantRepo, ownerRepo) {
+    constructor(miscRepo, requestRepo, inviteRepo, participantRepo, miscService) {
         this.miscRepo = miscRepo;
         this.requestRepo = requestRepo;
         this.inviteRepo = inviteRepo;
         this.participantRepo = participantRepo;
-        this.ownerRepo = ownerRepo;
+        this.miscService = miscService;
     }
     // Requests
     async createRequest(miscId, userId, dto) {
@@ -47,12 +48,12 @@ let MiscellaneousAccessService = class MiscellaneousAccessService {
             expires_at: expiresAt,
         });
     }
-    async listRequests(miscId, requesterId) {
-        await this.ensureOwner(miscId, requesterId);
+    async listRequests(miscId, requesterId, context) {
+        await this.miscService.ensureOwner(miscId, requesterId, context);
         return this.requestRepo.findByMiscellaneous(miscId);
     }
-    async reviewRequest(miscId, requestId, reviewerId, dto) {
-        await this.ensureOwner(miscId, reviewerId);
+    async reviewRequest(miscId, requestId, reviewerId, dto, context) {
+        await this.miscService.ensureOwner(miscId, reviewerId, context);
         const request = await this.requestRepo.findById(requestId);
         if (!request)
             throw new common_1.NotFoundException('Solicitação não encontrada');
@@ -72,8 +73,8 @@ let MiscellaneousAccessService = class MiscellaneousAccessService {
         return this.requestRepo.findById(requestId);
     }
     // Invites
-    async createInvite(miscId, inviterId, dto) {
-        await this.ensureOwner(miscId, inviterId);
+    async createInvite(miscId, inviterId, dto, context) {
+        await this.miscService.ensureOwner(miscId, inviterId, context);
         const already = await this.inviteRepo.hasPendingInvite(miscId, dto.invited_user_id);
         if (already)
             throw new common_1.BadRequestException('Já existe um convite pendente para este usuário');
@@ -117,26 +118,23 @@ let MiscellaneousAccessService = class MiscellaneousAccessService {
             responded_at: new Date(),
         });
     }
-    async cancelInvite(miscId, inviteId, requesterId) {
-        await this.ensureOwner(miscId, requesterId);
+    async cancelInvite(miscId, inviteId, requesterId, context) {
+        await this.miscService.ensureOwner(miscId, requesterId, context);
         const invite = await this.inviteRepo.findById(inviteId);
         if (!invite)
             throw new common_1.NotFoundException('Convite não encontrado');
+        if (invite.miscellaneous_id !== miscId)
+            throw new common_1.NotFoundException('Convite não encontrado nesta miscelânea');
         if (invite.status !== miscellaneousInvite_1.InviteStatus.PENDING)
             throw new common_1.BadRequestException('Convite não pode ser cancelado');
         await this.inviteRepo.update(inviteId, { status: miscellaneousInvite_1.InviteStatus.CANCELLED });
     }
-    async listPendingInvites(miscId, requesterId) {
-        await this.ensureOwner(miscId, requesterId);
+    async listPendingInvites(miscId, requesterId, context) {
+        await this.miscService.ensureOwner(miscId, requesterId, context);
         return this.inviteRepo.findPendingByMiscellaneous(miscId);
     }
     async listMyInvites(userId) {
         return this.inviteRepo.findPendingForUser(userId);
-    }
-    async ensureOwner(miscId, userId) {
-        const isOwner = await this.ownerRepo.isOwner(miscId, userId);
-        if (!isOwner)
-            throw new common_1.ForbiddenException('Apenas donos podem realizar esta ação');
     }
 };
 exports.MiscellaneousAccessService = MiscellaneousAccessService;
@@ -146,5 +144,5 @@ exports.MiscellaneousAccessService = MiscellaneousAccessService = __decorate([
         MiscellaneousSubRepositories_1.MiscellaneousRequestRepository,
         MiscellaneousSubRepositories_1.MiscellaneousInviteRepository,
         MiscellaneousSubRepositories_1.MiscellaneousParticipantRepository,
-        MiscellaneousSubRepositories_1.MiscellaneousOwnerRepository])
+        MiscellaneousService_1.MiscellaneousService])
 ], MiscellaneousAccessService);

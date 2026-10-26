@@ -9,12 +9,17 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.RefreshTokenDto = exports.LoginDto = void 0;
+exports.SwitchOrganizationDto = exports.RefreshTokenDto = exports.LoginDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
 class LoginDto {
 }
 exports.LoginDto = LoginDto;
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['platform', 'organization', 'member']),
+    __metadata("design:type", String)
+], LoginDto.prototype, "access_context", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ example: "user@example.com" }),
     (0, class_validator_1.IsString)(),
@@ -42,3 +47,18 @@ __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], RefreshTokenDto.prototype, "refreshToken", void 0);
+class SwitchOrganizationDto {
+}
+exports.SwitchOrganizationDto = SwitchOrganizationDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: "creajr" }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], SwitchOrganizationDto.prototype, "tenant_slug", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], SwitchOrganizationDto.prototype, "rememberMe", void 0);

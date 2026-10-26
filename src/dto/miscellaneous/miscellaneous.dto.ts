@@ -23,15 +23,38 @@ import {
 } from '../../models/miscellaneous';
 
 export class ScopeRuleDto {
-  @IsIn(['general', 'cae', 'car', 'city', 'university', 'course', 'semester'])
+  @IsIn(['general', 'org_unit', 'cae', 'car', 'city', 'university', 'course', 'semester'])
   type!: string;
 
+  @IsOptional() @IsUUID() org_unit_id?: string;
   @IsOptional() @IsUUID() cae_id?: string;
   @IsOptional() @IsUUID() car_id?: string;
   @IsOptional() @IsUUID() city_id?: string;
   @IsOptional() @IsUUID() university_id?: string;
   @IsOptional() @IsUUID() course_id?: string;
   @IsOptional() @IsInt() semester?: number;
+}
+
+export class ExternalRegistrationFieldDto {
+  @IsString()
+  @MaxLength(64)
+  key!: string;
+
+  @IsString()
+  @MaxLength(120)
+  label!: string;
+
+  @IsIn(['text', 'email', 'number', 'date', 'select', 'checkbox'])
+  type!: 'text' | 'email' | 'number' | 'date' | 'select' | 'checkbox';
+
+  @IsOptional()
+  @IsBoolean()
+  required?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  options?: string[];
 }
 
 export class CreateMiscellaneousDto {
@@ -123,6 +146,27 @@ export class CreateMiscellaneousDto {
   @IsString()
   banner_url?: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  cover_asset_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  banner_asset_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  map_asset_id?: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  sponsor_asset_ids?: string[];
+
   // Event-specific
   @ApiPropertyOptional()
   @IsOptional()
@@ -200,6 +244,13 @@ export class CreateMiscellaneousDto {
   @IsOptional()
   @IsString()
   waitlist_message?: string;
+
+  @ApiPropertyOptional({ type: [ExternalRegistrationFieldDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ExternalRegistrationFieldDto)
+  external_registration_schema?: ExternalRegistrationFieldDto[];
 
   // Owners & members
   @ApiPropertyOptional({ type: [String] })
@@ -293,6 +344,27 @@ export class UpdateMiscellaneousDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsUUID()
+  cover_asset_id?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  banner_asset_id?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  map_asset_id?: string | null;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  sponsor_asset_ids?: string[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   stream_link?: string;
 
@@ -363,6 +435,13 @@ export class UpdateMiscellaneousDto {
   @IsOptional()
   @IsString()
   waitlist_message?: string;
+
+  @ApiPropertyOptional({ type: [ExternalRegistrationFieldDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ExternalRegistrationFieldDto)
+  external_registration_schema?: ExternalRegistrationFieldDto[];
 }
 
 export class MiscellaneousFiltersDto {

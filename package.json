@@ -4,13 +4,24 @@
   "main": "/src/main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "test:onboarding": "node --test -r ts-node/register tests/organization-onboarding.test.ts",
+    "test:onboarding:integration": "node --test -r ts-node/register tests/organization-onboarding.integration.test.ts",
+    "test:access-events": "node --test -r ts-node/register tests/access-events.test.ts",
+    "test:email": "node --test -r ts-node/register tests/email.test.ts",
+    "test:email:integration": "node --test -r ts-node/register tests/email.integration.test.ts",
     "dev": "ts-node-dev --respawn --transpile-only src/main.ts",
     "start": "node dist/main.js",
-    "build": "tsc",
+    "email:process-once": "node dist/jobs/processEmailOutbox.js",
+    "db:migrate:compiled": "node node_modules/typeorm/cli.js migration:run -d dist/db.js",
+    "db:migrate:once": "node dist/scripts/runMigrations.js",
+    "email:compile": "ts-node src/scripts/compileEmails.ts",
+    "email:preview": "ts-node src/scripts/compileEmails.ts --preview",
+    "build": "npm run email:compile && tsc && node -e \"require('fs').copyFileSync('src/emails/transactional.html', 'dist/emails/transactional.html')\"",
     "migration:generate": "ts-node ./node_modules/typeorm/cli.js migration:generate -d src/db.ts",
     "migration:run": "ts-node ./node_modules/typeorm/cli.js migration:run -d src/db.ts",
     "migration:revert": "ts-node ./node_modules/typeorm/cli.js migration:revert -d src/db.ts",
     "migration:show": "ts-node ./node_modules/typeorm/cli.js migration:show -d src/db.ts",
+    "db:reset:development": "ts-node src/scripts/resetDevelopmentDatabase.ts",
     "sync:universities:mec": "ts-node src/scripts/syncMecUniversities.ts",
     "sync:courses:mec": "ts-node src/scripts/syncMecCourses.ts",
     "hash-password": "ts-node -e \"require('bcryptjs').hash(process.argv[1], 10).then(h => console.log(h))\" --"
@@ -20,6 +31,8 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1146.0",
+    "@aws-sdk/s3-request-presigner": "^3.1146.0",
     "@nestjs/common": "^11.1.13",
     "@nestjs/core": "^11.1.13",
     "@nestjs/platform-express": "^11.1.13",
@@ -37,18 +50,27 @@
     "pg": "^8.14.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
-    "typeorm": "^0.3.21"
+    "typeorm": "^0.3.21",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.1",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/mjml": "^5.4.1",
     "@types/node-cron": "^3.0.11",
     "@types/pg": "^8.11.11",
+    "mjml": "^5.4.1",
     "nodemon": "^3.1.9",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.5.4"
+  },
+  "overrides": {
+    "multer": "^2.5.0",
+    "@nestjs/swagger": {
+      "js-yaml": "^5.5.0"
+    }
   }
 }

@@ -1,5 +1,6 @@
 export interface ScopeRuleLike {
-  type: 'general' | 'cae' | 'car' | 'city' | 'university' | 'course' | 'semester';
+  type: 'general' | 'org_unit' | 'cae' | 'car' | 'city' | 'university' | 'course' | 'semester';
+  org_unit_id?: string | null;
   cae_id?: string | null;
   car_id?: string | null;
   city_id?: string | null;
@@ -9,6 +10,7 @@ export interface ScopeRuleLike {
 }
 
 export interface MemberScopeContext {
+  org_unit_ids?: string[];
   cae_id?: string | null;
   car_id?: string | null;
   city_id?: string | null;
@@ -22,6 +24,8 @@ export function matchesScopeRule(rule: ScopeRuleLike, member: MemberScopeContext
   switch (rule.type) {
     case 'general':
       return true;
+    case 'org_unit':
+      return !!rule.org_unit_id && !!member.org_unit_ids?.includes(rule.org_unit_id);
     case 'cae':
       return !!rule.cae_id && member.cae_id === rule.cae_id;
     case 'car':

@@ -1,0 +1,33 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const fs_1 = require("fs");
+const path_1 = require("path");
+const mjml_1 = __importDefault(require("mjml"));
+const renderEmail_1 = require("../emails/renderEmail");
+async function compile() {
+    const directory = (0, path_1.resolve)(__dirname, '../emails');
+    const result = await (0, mjml_1.default)((0, fs_1.readFileSync)((0, path_1.resolve)(directory, 'transactional.mjml'), 'utf8'), {
+        validationLevel: 'strict', minify: true,
+    });
+    if (result.errors.length || Buffer.byteLength(result.html) >= 90000) {
+        throw new Error('Invalid email template or HTML exceeds 90KB');
+    }
+    (0, fs_1.writeFileSync)((0, path_1.resolve)(directory, 'transactional.html'), result.html);
+    console.log(`Email template compiled: ${Buffer.byteLength(result.html)} bytes`);
+    if (process.argv.includes('--preview')) {
+        const preview = (0, renderEmail_1.renderEmail)({
+            title: 'Conclua seu acesso de administrador', organization: 'Organização de demonstração',
+            body: 'Você recebeu um convite para administrar sua organização no UseAyni. Conclua seu acesso pelo link abaixo.',
+            details: 'O link é válido por 24 horas. Se você já possui uma conta UseAyni, sua senha atual será preservada.',
+            reason: 'Você recebeu esta mensagem porque a organização convidou este endereço.',
+            action: { label: 'Concluir meu acesso', url: 'https://www.useayni.com/login' },
+        });
+        const output = (0, path_1.resolve)(directory, 'preview.html');
+        (0, fs_1.writeFileSync)(output, preview.html);
+        console.log(`Preview: ${output}`);
+    }
+}
+void compile().catch(() => { console.error('Email compilation failed'); process.exitCode = 1; });

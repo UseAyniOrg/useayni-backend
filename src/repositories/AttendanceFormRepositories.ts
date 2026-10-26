@@ -18,6 +18,10 @@ export class AttendanceRepository {
     return this.sessionRepo.findOne({ where: { id }, relations: ['miscellaneous'] });
   }
 
+  async deleteSession(id: string) {
+    return this.sessionRepo.delete(id);
+  }
+
   async findSessionsByMiscellaneous(miscellaneousId: string) {
     return this.sessionRepo.find({
       where: { miscellaneous_id: miscellaneousId },
@@ -51,6 +55,7 @@ export class AttendanceRepository {
   async createToken(sessionId: string, memberId: string, token: string, expiresAt: Date) {
     const existing = await this.tokenRepo.findOne({ where: { session_id: sessionId, member_id: memberId } });
     if (existing) {
+      if (!existing.used && existing.expires_at > new Date()) return existing;
       await this.tokenRepo.update(existing.id, { token, expires_at: expiresAt, used: false });
       return this.tokenRepo.findOne({ where: { id: existing.id } });
     }

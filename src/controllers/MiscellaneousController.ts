@@ -15,6 +15,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { Request } from 'express';
 import { AuthorizationGuard } from '../middlewares/authorization.guard';
+import { FeatureFlagGuard, RequireFeature } from '../middlewares/requireFeature.decorator';
 import { MiscellaneousService } from '../services/MiscellaneousService';
 import { MiscellaneousAccessService } from '../services/MiscellaneousAccessService';
 import {
@@ -36,7 +37,8 @@ import {
 
 @Controller('miscellaneous')
 @ApiTags('Miscellaneous')
-@UseGuards(AuthorizationGuard)
+@UseGuards(AuthorizationGuard, FeatureFlagGuard)
+@RequireFeature('miscellaneous_full')
 @ApiBearerAuth()
 export class MiscellaneousController {
   constructor(
@@ -52,31 +54,48 @@ export class MiscellaneousController {
   @ApiOperation({ summary: 'Create miscellaneous' })
   async create(@Body() dto: CreateMiscellaneousDto, @Req() req: Request) {
     const user = req.user!;
-    return this.miscService.create(dto, user.id, user.roles);
+    const dtoWithOrg = {
+      ...dto,
+      organization_id: req.tenant?.organization_id ?? (dto as any).organization_id,
+    };
+    return this.miscService.create(dtoWithOrg as any, user.id, user.roles);
   }
 
   @Get()
   @ApiOperation({ summary: 'List miscellaneous with filters' })
   async findAll(@Query() filters: MiscellaneousFiltersDto, @Req() req: Request) {
-    return this.miscService.findAll(filters, req.user!.id);
+    // Inject tenant scope automatically
+    const filtersWithOrg = {
+      ...filters,
+      organization_id: req.tenant?.organization_id,
+    };
+    const canManageOrganization = req.user!.roles.some((role) =>
+      ['EQUIPE_TECNICA', 'organization.admin', 'organization.manage'].includes(role),
+    );
+    return this.miscService.findAll(filtersWithOrg as any, req.user!.id, canManageOrganization);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get miscellaneous by ID' })
-  async findOne(@Param('id') id: string) {
-    return this.miscService.findById(id);
+  async findOne(@Param('id') id: string, @Req() req: Request) {
+    return this.miscService.findVisibleById(
+      id,
+      req.tenant?.organization_id,
+      req.user!.id,
+      req.user!.roles,
+    );
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update miscellaneous' })
   async update(@Param('id') id: string, @Body() dto: UpdateMiscellaneousDto, @Req() req: Request) {
-    return this.miscService.update(id, dto, req.user!.id);
+    return this.miscService.update(id, dto, req.user!.id, req.user!);
   }
 
   @Patch(':id/archive')
   @ApiOperation({ summary: 'Archive miscellaneous' })
   async archive(@Param('id') id: string, @Req() req: Request) {
-    await this.miscService.archive(id, req.user!.id);
+    await this.miscService.archive(id, req.user!.id, req.user!);
     return { message: 'Miscelânea arquivada com sucesso' };
   }
 
@@ -84,7 +103,7 @@ export class MiscellaneousController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Soft-delete miscellaneous' })
   async remove(@Param('id') id: string, @Req() req: Request) {
-    await this.miscService.remove(id, req.user!.id);
+    await this.miscService.remove(id, req.user!.id, req.user!);
   }
 
   // ─── HIERARCHY ────────────────────────────────────────────────────────────
@@ -99,14 +118,31 @@ export class MiscellaneousController {
 
   @Get(':id/people')
   @ApiOperation({ summary: 'Get owners and members' })
-  async getPeople(@Param('id') id: string) {
-    return this.miscService.getPeople(id);
+  async getPeople(@Param('id') id: string, @Req() req: Request) {
+    return this.miscService.getPeople(id, req.user!.id, req.tenant!.organization_id, req.user!);
+  }
+
+  @Get(':id/external-registrations')
+  @ApiOperation({ summary: 'List external registrations for an event (owner only)' })
+  async getExternalRegistrations(@Param('id') id: string, @Req() req: Request) {
+    return this.miscService.getExternalRegistrations(
+      id,
+      req.user!.id,
+      req.tenant!.organization_id,
+      req.user!,
+    );
   }
 
   @Get(':id/search-members')
   @ApiOperation({ summary: 'Search members by name or email' })
   async searchMembers(@Param('id') id: string, @Query('query') query: string, @Req() req: Request) {
-    return this.miscService.searchMembers(id, req.user!.id, query);
+    return this.miscService.searchMembers(
+      id,
+      req.user!.id,
+      query,
+      req.tenant!.organization_id,
+      req.user!,
+    );
   }
 
   @Post(':id/owners')
@@ -118,16 +154,17 @@ export class MiscellaneousController {
   ) {
     const targetMemberId = await this.miscService.resolveMemberTarget(
       body.member_id,
+      req.tenant!.organization_id,
       body.member_query
     );
-    return this.miscService.addOwner(id, targetMemberId, req.user!.id);
+    return this.miscService.addOwner(id, targetMemberId, req.user!.id, req.user!);
   }
 
   @Delete(':id/owners/:userId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove owner' })
   async removeOwner(@Param('id') id: string, @Param('userId') userId: string, @Req() req: Request) {
-    await this.miscService.removeOwner(id, userId, req.user!.id);
+    await this.miscService.removeOwner(id, userId, req.user!.id, req.user!);
   }
 
   @Post(':id/join')
@@ -145,9 +182,10 @@ export class MiscellaneousController {
   ) {
     const targetMemberId = await this.miscService.resolveMemberTarget(
       body.member_id,
+      req.tenant!.organization_id,
       body.member_query
     );
-    return this.miscService.addMember(id, targetMemberId, req.user!.id);
+    return this.miscService.addMember(id, targetMemberId, req.user!.id, req.user!);
   }
 
   @Delete(':id/members/:userId')
@@ -158,7 +196,7 @@ export class MiscellaneousController {
     @Param('userId') userId: string,
     @Req() req: Request
   ) {
-    await this.miscService.removeMember(id, userId, req.user!.id);
+    await this.miscService.removeMember(id, userId, req.user!.id, req.user!);
   }
 
   // ─── APPROVAL ─────────────────────────────────────────────────────────────
@@ -206,7 +244,7 @@ export class MiscellaneousController {
   @Get(':id/requests')
   @ApiOperation({ summary: 'List participation requests (owner only)' })
   async listRequests(@Param('id') id: string, @Req() req: Request) {
-    return this.accessService.listRequests(id, req.user!.id);
+    return this.accessService.listRequests(id, req.user!.id, req.user!);
   }
 
   @Patch(':id/requests/:requestId')
@@ -217,7 +255,7 @@ export class MiscellaneousController {
     @Body() dto: ReviewRequestDto,
     @Req() req: Request
   ) {
-    return this.accessService.reviewRequest(id, requestId, req.user!.id, dto);
+    return this.accessService.reviewRequest(id, requestId, req.user!.id, dto, req.user!);
   }
 
   // ─── INVITES ──────────────────────────────────────────────────────────────
@@ -226,13 +264,13 @@ export class MiscellaneousController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Send invite (owner only)' })
   async createInvite(@Param('id') id: string, @Body() dto: CreateInviteDto, @Req() req: Request) {
-    return this.accessService.createInvite(id, req.user!.id, dto);
+    return this.accessService.createInvite(id, req.user!.id, dto, req.user!);
   }
 
   @Get(':id/invites')
   @ApiOperation({ summary: 'List pending invites (owner only)' })
   async listInvites(@Param('id') id: string, @Req() req: Request) {
-    return this.accessService.listPendingInvites(id, req.user!.id);
+    return this.accessService.listPendingInvites(id, req.user!.id, req.user!);
   }
 
   @Patch(':id/invites/:inviteId/accept')
@@ -266,7 +304,7 @@ export class MiscellaneousController {
     @Param('inviteId') inviteId: string,
     @Req() req: Request
   ) {
-    await this.accessService.cancelInvite(id, inviteId, req.user!.id);
+    await this.accessService.cancelInvite(id, inviteId, req.user!.id, req.user!);
   }
 
   // ─── WAITLIST ─────────────────────────────────────────────────────────────
@@ -280,20 +318,20 @@ export class MiscellaneousController {
   @Get(':id/waitlist')
   @ApiOperation({ summary: 'Get waitlist (owner only)' })
   async getWaitlist(@Param('id') id: string, @Req() req: Request) {
-    return this.waitlistService.getWaitlist(id, req.user!.id);
+    return this.waitlistService.getWaitlist(id, req.user!.id, req.user!);
   }
 
   @Post(':id/waitlist/promote/:userId')
   @ApiOperation({ summary: 'Promote user from waitlist (owner only)' })
   async promote(@Param('id') id: string, @Param('userId') userId: string, @Req() req: Request) {
-    await this.waitlistService.promote(id, userId, req.user!.id);
+    await this.waitlistService.promote(id, userId, req.user!.id, req.user!);
     return { message: 'Usuário promovido da lista de espera' };
   }
 
   @Post(':id/registrations/close')
   @ApiOperation({ summary: 'Close registrations manually (owner only)' })
   async closeRegistrations(@Param('id') id: string, @Req() req: Request) {
-    await this.miscService.ensureOwner(id, req.user!.id);
+    await this.miscService.ensureOwner(id, req.user!.id, req.user!);
     await this.miscService.closeRegistrations(id);
     return { message: 'Inscrições encerradas' };
   }
@@ -303,14 +341,14 @@ export class MiscellaneousController {
   @Post(':id/public-access/enable')
   @ApiOperation({ summary: 'Enable public access (owner only)' })
   async enablePublicAccess(@Param('id') id: string, @Req() req: Request) {
-    const slug = await this.miscService.enablePublicAccess(id, req.user!.id);
-    return { slug, url: `/p/${slug}` };
+    const slug = await this.miscService.enablePublicAccess(id, req.user!.id, req.user!);
+    return { slug, url: `/eventos/${slug}` };
   }
 
   @Post(':id/public-access/disable')
   @ApiOperation({ summary: 'Disable public access (owner only)' })
   async disablePublicAccess(@Param('id') id: string, @Req() req: Request) {
-    await this.miscService.disablePublicAccess(id, req.user!.id);
+    await this.miscService.disablePublicAccess(id, req.user!.id, req.user!);
     return { message: 'Acesso público desativado' };
   }
 }
@@ -318,6 +356,8 @@ export class MiscellaneousController {
 @Controller('approvals')
 @ApiTags('Approvals')
 @UseGuards(AuthorizationGuard)
+@UseGuards(FeatureFlagGuard)
+@RequireFeature('miscellaneous_full')
 @ApiBearerAuth()
 export class ApprovalController {
   constructor(private readonly miscService: MiscellaneousService) {}
@@ -332,6 +372,8 @@ export class ApprovalController {
 @Controller('invites')
 @ApiTags('Invites')
 @UseGuards(AuthorizationGuard)
+@UseGuards(FeatureFlagGuard)
+@RequireFeature('miscellaneous_full')
 @ApiBearerAuth()
 export class MyInvitesController {
   constructor(private readonly accessService: MiscellaneousAccessService) {}

@@ -9,6 +9,8 @@ import { UniversityRepository } from '../repositories/UniversityRepository';
 import { CourseRepository } from '../repositories/CourseRepository';
 import { CourseUniversityRepository } from '../repositories/CourseUniversityRepository';
 import { RoleRepository } from '../repositories/RoleRepository';
+import { FeatureFlagGuard } from '../middlewares/requireFeature.decorator';
+import { AccountProvisioningService } from '../services/AccountProvisioningService';
 
 @Module({
   controllers: [MemberController],
@@ -22,6 +24,8 @@ import { RoleRepository } from '../repositories/RoleRepository';
     CourseRepository,
     CourseUniversityRepository,
     RoleRepository,
+    FeatureFlagGuard,
+    AccountProvisioningService,
   ],
   exports: [MemberService],
 })

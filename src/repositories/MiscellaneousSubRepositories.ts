@@ -37,7 +37,25 @@ export class MiscellaneousOwnerRepository {
 
   async isOwner(miscellaneousId: string, memberId: string): Promise<boolean> {
     const count = await this.repo.count({ where: { miscellaneous_id: miscellaneousId, member_id: memberId } });
-    return count > 0;
+    if (count > 0) return true;
+
+    const supportAccess = await AppDataBase.query(
+      `SELECT 1
+       FROM miscellaneous AS event
+       JOIN members AS actor ON actor.id = $2
+       JOIN user_account_roles AS account_role
+         ON account_role.account_id = actor.account_id
+        AND account_role.role_name = 'EQUIPE_TECNICA'
+       JOIN platform_support_sessions AS support
+         ON support.organization_id = event.organization_id
+        AND support.actor_account_id = actor.account_id
+        AND support.revoked_at IS NULL
+        AND support.expires_at > now()
+       WHERE event.id = $1
+       LIMIT 1`,
+      [miscellaneousId, memberId],
+    );
+    return supportAccess.length > 0;
   }
 }
 

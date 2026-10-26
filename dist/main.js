@@ -32,19 +32,40 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 require("reflect-metadata");
 const dotenv = __importStar(require("dotenv"));
 dotenv.config();
 const core_1 = require("@nestjs/core");
+const express_1 = __importDefault(require("express"));
 const swagger_1 = require("@nestjs/swagger");
 const app_module_1 = require("./modules/app.module");
 const db_1 = require("./db");
+const mutationAudit_interceptor_1 = require("./middlewares/mutationAudit.interceptor");
+const r2_1 = require("./lib/storage/r2");
+require("./jobs/cleanPendingMediaAssets");
+const corsOrigin_1 = require("./helpers/corsOrigin");
 async function bootstrap() {
+    (0, r2_1.initializeR2Storage)();
     await db_1.AppDataBase.initialize();
-    const app = await core_1.NestFactory.create(app_module_1.AppModule);
+    const app = await core_1.NestFactory.create(app_module_1.AppModule, { bodyParser: false });
+    app.enableShutdownHooks();
+    app.use(['/media/uploads', '/org-home/admin/organizations'], express_1.default.raw({ type: ['image/*', 'application/pdf'], limit: '10mb' }));
+    app.use(express_1.default.json());
+    app.use(express_1.default.urlencoded({ extended: true }));
+    app.useGlobalInterceptors(new mutationAudit_interceptor_1.MutationAuditInterceptor());
+    const configuredOrigins = new Set((process.env.ALLOWED_ORIGINS ?? '')
+        .split(',')
+        .map((origin) => origin.trim().replace(/\/$/, ''))
+        .filter(Boolean));
+    const corsOrigin = (origin, callback) => {
+        callback(null, !origin || configuredOrigins.has(origin) || (0, corsOrigin_1.isTenantOrigin)(origin));
+    };
     app.enableCors({
-        origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+        origin: corsOrigin,
         credentials: true,
     });
     const config = new swagger_1.DocumentBuilder()
@@ -55,8 +76,8 @@ async function bootstrap() {
         .build();
     const document = swagger_1.SwaggerModule.createDocument(app, config);
     swagger_1.SwaggerModule.setup('api/docs', app, document);
-    await app.listen(3333);
-    console.log('Servidor NestJS rodando na porta 3333');
-    console.log('Documentação Swagger: http://localhost:3333/api/docs');
+    const port = Number(process.env.PORT ?? 3333);
+    await app.listen(port, '0.0.0.0');
+    console.log(`Servidor NestJS rodando na porta ${port}`);
 }
 bootstrap();

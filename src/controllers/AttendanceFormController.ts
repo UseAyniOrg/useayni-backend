@@ -1,19 +1,24 @@
 import {
-  Controller, Get, Post, Patch, Param, Body, Req,
-  HttpCode, HttpStatus, UseGuards, NotFoundException,
+  Controller, Get, Post, Patch, Delete, Param, Body, Req,
+  HttpCode, HttpStatus, UseGuards, NotFoundException, ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Request } from 'express';
 import { AuthorizationGuard } from '../middlewares/authorization.guard';
+import { FeatureFlagGuard, RequireFeature } from '../middlewares/requireFeature.decorator';
+import { ExternalEventRegistrationService } from '../services/ExternalEventRegistrationService';
 import { AttendanceService } from '../services/MiscellaneousWaitlistAttendanceService';
 import { FormService } from '../services/FormService';
 import { MiscellaneousRepository } from '../repositories/MiscellaneousRepository';
 import { CreateAttendanceSessionDto, ManualCheckInDto } from '../dto/miscellaneous/actions.dto';
 import { CreateFormDto, CreateFormQuestionDto, ReorderQuestionsDto, SubmitFormResponseDto } from '../dto/miscellaneous/form.dto';
+import { MediaAssetService } from '../services/MediaAssetService';
+import { CommunitySessionGuard } from '../middlewares/communitySession.guard';
 
 @Controller('miscellaneous/:miscId/attendance-sessions')
 @ApiTags('Attendance')
-@UseGuards(AuthorizationGuard)
+@UseGuards(AuthorizationGuard, FeatureFlagGuard)
+@RequireFeature('miscellaneous_attendance')
 @ApiBearerAuth()
 export class AttendanceController {
   constructor(private readonly attendanceService: AttendanceService) {}
@@ -26,7 +31,7 @@ export class AttendanceController {
     @Body() dto: CreateAttendanceSessionDto,
     @Req() req: Request,
   ) {
-    return this.attendanceService.createSession(miscId, req.user!.id, dto);
+    return this.attendanceService.createSession(miscId, req.user!.id, dto, req.user!);
   }
 
   @Get()
@@ -38,11 +43,20 @@ export class AttendanceController {
 
 @Controller('attendance-sessions')
 @ApiTags('Attendance')
+@UseGuards(AuthorizationGuard, FeatureFlagGuard)
+@RequireFeature('miscellaneous_attendance')
 export class AttendanceSessionController {
   constructor(private readonly attendanceService: AttendanceService) {}
 
+  @Delete(':sessionId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Permanently delete attendance session and its records (owner only)' })
+  async deleteSession(@Param('sessionId', ParseUUIDPipe) sessionId: string, @Req() req: Request) {
+    await this.attendanceService.deleteSession(sessionId, req.user!.id, req.user!);
+  }
+
   @Get(':sessionId/token')
-  @UseGuards(AuthorizationGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get QR token for current user' })
   async getToken(@Param('sessionId') sessionId: string, @Req() req: Request) {
@@ -50,7 +64,6 @@ export class AttendanceSessionController {
   }
 
   @Post(':sessionId/check-in')
-  @UseGuards(AuthorizationGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Check-in via QR token (owner only)' })
   async checkIn(
@@ -58,11 +71,10 @@ export class AttendanceSessionController {
     @Body('token') token: string,
     @Req() req: Request,
   ) {
-    return this.attendanceService.checkInByQr(sessionId, token, req.user!.id);
+    return this.attendanceService.checkInByQr(sessionId, token, req.user!.id, req.user!);
   }
 
   @Patch(':sessionId/records/:userId')
-  @UseGuards(AuthorizationGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Manual check-in (owner only)' })
   async manualCheckIn(
@@ -71,11 +83,10 @@ export class AttendanceSessionController {
     @Body() dto: ManualCheckInDto,
     @Req() req: Request,
   ) {
-    return this.attendanceService.manualCheckIn(sessionId, userId, req.user!.id, dto);
+    return this.attendanceService.manualCheckIn(sessionId, userId, req.user!.id, dto, req.user!);
   }
 
   @Get(':sessionId/records')
-  @UseGuards(AuthorizationGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List attendance records' })
   async getRecords(@Param('sessionId') sessionId: string) {
@@ -85,12 +96,13 @@ export class AttendanceSessionController {
 
 @Controller('forms')
 @ApiTags('Forms')
+@UseGuards(AuthorizationGuard, FeatureFlagGuard)
+@RequireFeature('miscellaneous_forms')
 export class FormController {
   constructor(private readonly formService: FormService) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @UseGuards(AuthorizationGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create form' })
   async createForm(@Body() dto: CreateFormDto, @Req() req: Request) {
@@ -98,7 +110,6 @@ export class FormController {
   }
 
   @Get(':id')
-  @UseGuards(AuthorizationGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get form by ID' })
   async getForm(@Param('id') id: string) {
@@ -107,7 +118,6 @@ export class FormController {
 
   @Post(':id/questions')
   @HttpCode(HttpStatus.CREATED)
-  @UseGuards(AuthorizationGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Add question to form' })
   async addQuestion(@Param('id') id: string, @Body() dto: CreateFormQuestionDto, @Req() req: Request) {
@@ -115,7 +125,6 @@ export class FormController {
   }
 
   @Patch(':id/questions/reorder')
-  @UseGuards(AuthorizationGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Reorder questions' })
   async reorderQuestions(@Param('id') id: string, @Body() dto: ReorderQuestionsDto, @Req() req: Request) {
@@ -132,7 +141,6 @@ export class FormController {
   }
 
   @Get(':id/results')
-  @UseGuards(AuthorizationGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get form results' })
   async getResults(@Param('id') id: string, @Req() req: Request) {
@@ -142,25 +150,168 @@ export class FormController {
 
 @Controller('public')
 @ApiTags('Public')
+@UseGuards(FeatureFlagGuard)
+@RequireFeature('miscellaneous_public')
 export class PublicController {
   constructor(
     private readonly miscRepo: MiscellaneousRepository,
     private readonly formService: FormService,
+    private readonly externalRegistrationService: ExternalEventRegistrationService,
+    private readonly mediaService: MediaAssetService,
+    private readonly attendanceService: AttendanceService,
   ) {}
 
   @Get('eventos/:slug')
   @ApiOperation({ summary: 'Public event page (no auth)' })
-  async publicEvent(@Param('slug') slug: string) {
+  async publicEvent(@Param('slug') slug: string, @Req() request: Request) {
     const misc = await this.miscRepo.findBySlug(slug);
     if (!misc || !misc.public_access_enabled) {
       throw new NotFoundException('Evento n\u00e3o encontrado');
     }
-    return misc;
+    const media = await this.mediaService.publicMiscellaneousMedia(
+      request.tenant!.organization_id,
+      misc.id,
+    );
+    return { ...misc, media };
   }
 
   @Get('formularios/:slug')
   @ApiOperation({ summary: 'Public form page (no auth)' })
-  async publicForm(@Param('slug') slug: string) {
-    return this.formService.getFormBySlug(slug);
+  async publicForm(@Param('slug') slug: string, @Req() request: Request) {
+    const form = await this.formService.getFormBySlug(slug);
+    const media = form.miscellaneous_id
+      ? await this.mediaService.publicMiscellaneousMedia(
+          request.tenant!.organization_id,
+          form.miscellaneous_id,
+        )
+      : null;
+    return { ...form, media };
+  }
+
+  @Get('events/:slug/registration')
+  @UseGuards(FeatureFlagGuard)
+  @RequireFeature('miscellaneous_public')
+  @ApiOperation({ summary: 'Get public event and external registration requirements' })
+  async eventRegistrationInfo(@Param('slug') slug: string, @Req() request: Request) {
+    const event = await this.externalRegistrationService.getPublicEvent(slug, request.tenant!.organization_id);
+    const mediaEnabled = request.tenant!.features.includes('media_storage');
+    const media = mediaEnabled ? await this.mediaService.publicMiscellaneousMedia(
+      request.tenant!.organization_id,
+      event.id,
+    ) : null;
+    return { ...event, media, media_enabled: mediaEnabled };
+  }
+
+  @Get('events/:slug/my-registration')
+  @UseGuards(CommunitySessionGuard)
+  async myRegistration(@Param('slug') slug: string, @Req() request: Request) {
+    return this.externalRegistrationService.registrationStatus(slug, request.tenant!.organization_id, request.user?.account_id);
+  }
+
+  @Post('events/:slug/register')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(FeatureFlagGuard, CommunitySessionGuard)
+  @RequireFeature('miscellaneous_public')
+  @ApiOperation({ summary: 'Create a global external account and register for a public event' })
+  async registerForEvent(
+    @Param('slug') slug: string,
+    @Body() body: {
+      name: string;
+      email: string;
+      password?: string;
+      phone?: string;
+      cpf?: string;
+      profile_type?: 'basic' | 'academic';
+      academic_data?: {
+        ra?: string;
+        academic_email?: string;
+        course?: string;
+        institution?: string;
+        city?: string;
+        state?: string;
+      };
+      additional_attributes?: Record<string, unknown>;
+      registration_data?: Record<string, unknown>;
+      accepted_privacy?: boolean;
+      organization_profile_key?: string;
+      profile_data?: Record<string, unknown>;
+    },
+    @Req() request: Request,
+  ) {
+    return this.externalRegistrationService.register(slug, body, request.tenant!.organization_id, request.user?.account_id);
+  }
+
+  @Get('events/:slug/attendance')
+  @UseGuards(CommunitySessionGuard)
+  async participantAttendance(@Param('slug') slug: string, @Req() request: Request) {
+    const participant = await this.externalRegistrationService.requireEventParticipant(slug, request.tenant!.organization_id, request.user?.account_id);
+    if (!request.tenant!.features.includes('miscellaneous_attendance')) return [];
+    return this.attendanceService.listSessions(participant.eventId);
+  }
+
+  @Get('events/:slug/attendance/:sessionId/token')
+  @UseGuards(CommunitySessionGuard, FeatureFlagGuard)
+  @RequireFeature('miscellaneous_attendance')
+  async participantAttendanceToken(@Param('slug') slug: string, @Param('sessionId', ParseUUIDPipe) sessionId: string, @Req() request: Request) {
+    const participant = await this.externalRegistrationService.requireEventParticipant(slug, request.tenant!.organization_id, request.user?.account_id);
+    return this.attendanceService.getParticipantToken(participant.eventId, sessionId, participant.memberId);
+  }
+}
+
+@Controller('external-profile')
+@ApiTags('External profiles')
+@UseGuards(AuthorizationGuard)
+@ApiBearerAuth()
+export class ExternalProfileController {
+  constructor(private readonly externalRegistrationService: ExternalEventRegistrationService) {}
+
+  @Get('me')
+  @ApiOperation({ summary: 'Get the authenticated account external profile' })
+  getMyProfile(@Req() request: Request) {
+    return this.externalRegistrationService.getMyProfile(request.user?.account_id);
+  }
+
+  @Get('registrations')
+  getMyRegistrations(@Req() request: Request) {
+    return this.externalRegistrationService.getMyRegistrations(request.user?.account_id, request.tenant!.organization_id);
+  }
+
+  @Patch('me')
+  @ApiOperation({ summary: 'Update the authenticated account external profile' })
+  updateMyProfile(
+    @Req() request: Request,
+    @Body() body: {
+      display_name?: string;
+      phone?: string;
+      profile_type?: 'basic' | 'academic';
+      academic_data?: {
+        ra?: string;
+        academic_email?: string;
+        course?: string;
+        institution?: string;
+        city?: string;
+        state?: string;
+      };
+      additional_attributes?: Record<string, unknown>;
+    },
+  ) {
+    return this.externalRegistrationService.updateMyProfile(request.user?.account_id, body);
+  }
+}
+
+@Controller('event-participation')
+@UseGuards(CommunitySessionGuard)
+export class EventParticipationController {
+  constructor(private readonly registrations: ExternalEventRegistrationService) {}
+
+  @Get(':id/answers')
+  getAnswers(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
+    return this.registrations.getParticipantAnswers(id, req.tenant!.organization_id, req.user?.account_id);
+  }
+
+  @Patch(':id/answers')
+  updateAnswers(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request,
+    @Body() input: { registration_data?: Record<string, unknown>; accepted_privacy?: boolean }) {
+    return this.registrations.updateParticipantAnswers(id, req.tenant!.organization_id, req.user?.account_id, input);
   }
 }

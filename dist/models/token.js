@@ -23,9 +23,13 @@ __decorate([
     __metadata("design:type", String)
 ], Token.prototype, "token", void 0);
 __decorate([
-    (0, typeorm_1.Column)(),
-    __metadata("design:type", String)
+    (0, typeorm_1.Column)({ type: 'uuid', nullable: true }),
+    __metadata("design:type", Object)
 ], Token.prototype, "memberId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'uuid', nullable: true }),
+    __metadata("design:type", Object)
+], Token.prototype, "account_id", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: "varchar", length: 20 }),
     __metadata("design:type", String)

@@ -40,9 +40,7 @@ function initSentry() {
     Sentry.init({
         dsn: process.env.SENTRY_DSN,
         environment: process.env.NODE_ENV || 'development',
-        integrations: [
-            (0, profiling_node_1.nodeProfilingIntegration)(),
-        ],
+        integrations: [(0, profiling_node_1.nodeProfilingIntegration)()],
         tracesSampleRate: 1.0,
         profilesSampleRate: 1.0,
         enabled: process.env.NODE_ENV === 'production',

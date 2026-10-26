@@ -6,6 +6,8 @@ function matchesScopeRule(rule, member) {
     switch (rule.type) {
         case 'general':
             return true;
+        case 'org_unit':
+            return !!rule.org_unit_id && !!member.org_unit_ids?.includes(rule.org_unit_id);
         case 'cae':
             return !!rule.cae_id && member.cae_id === rule.cae_id;
         case 'car':
