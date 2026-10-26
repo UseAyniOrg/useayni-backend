@@ -52,14 +52,32 @@ Configure Cloud Scheduler com `* * * * *`, target Cloud Run Job, OIDC e service 
 1. `.env.production` configura `VITE_BACKEND_URL=https://api.useayni.com`; essa URL é pública e vai para o bundle.
 2. Crie/valide DNS proxied para `useayni.com` e `*.useayni.com`. A rota wildcard precisa do registro DNS wildcard para ser ativada.
 3. Implante o Cloud Run Service e obtenha sua URL HTTPS `*.run.app`.
-4. Na pasta `ayni-frontend`, publique o Worker:
+4. Na configuração Builds do Cloudflare Workers, use:
+
+```text
+Root directory: /
+Build command: npm run build
+Deploy command: npm run deploy:workers:cloudflare
+```
+
+Adicione estas Build variables separadamente (não como uma lista em um único campo):
+
+```text
+CLOUD_RUN_API_ORIGIN=https://<servico-cloud-run>.run.app
+VITE_BACKEND_URL=https://api.useayni.com
+VITE_PUBLIC_CONTACT_EMAIL=<email-publico-de-contato>
+```
+
+`CLOUD_RUN_API_ORIGIN` é a URL gerada pelo Cloud Run. Não use `api.useayni.com` como valor: esse hostname retorna ao próprio Worker e causaria um loop. O script passa a origem Cloud Run ao Wrangler como variável de runtime `API_ORIGIN`. Os valores `VITE_*` são públicos e ficam no bundle.
+
+Localmente, na pasta `ayni-frontend`, o equivalente é:
 
 ```powershell
 $env:CLOUD_RUN_API_ORIGIN = 'https://<servico-cloud-run>.run.app'
 npm run deploy:workers
 ```
 
-O script valida a URL e a passa ao Wrangler como `API_ORIGIN`. É uma origem pública, não um segredo. `wrangler.jsonc` registra as rotas apex e wildcard; confirme que a zona `useayni.com` está ativa na conta Cloudflare antes do deploy.
+`wrangler.jsonc` registra as rotas apex e wildcard; confirme que a zona `useayni.com` está ativa na conta Cloudflare antes do deploy.
 
 Após DNS/TLS propagar, valide `www`, apex, um tenant, API, CORS, login, inscrição pública e mídia `/m/:id`. A Brevo deve apontar para `https://api.useayni.com/email/webhooks/brevo` com o header `X-Email-Webhook-Secret` configurado.
 
